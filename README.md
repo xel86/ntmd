@@ -1,4 +1,4 @@
 # ntmd (WIP)
 Network Traffic Monitoring Daemon for linux.
 
-Successor to previous project https://github.com/omnis
+Successor to previous project https://github.com/xel86/omnis
