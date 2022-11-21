@@ -16,6 +16,7 @@ Example: ntmd --daemon
 Arguments:
   -x, --debug       Print additional debug information to log.
   -i, --interval    Interval in seconds to update database with buffered traffic.
+  -c, --config      Absolute path to search for the config file location rather than defaults.
   --daemon          Used to launch initial daemon process to monitor traffic.
 )";
 
@@ -71,6 +72,29 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
             {
                 fprintf(stderr, "The interval argument (-i, --interval) requires an "
                                 "integer in seconds.\n");
+                exit(1);
+            }
+
+            it++;
+            continue;
+        }
+
+        if (arg == "-c" || arg == "--config")
+        {
+            if (it + 1 != end)
+            {
+                this->configPath = *(it + 1);
+                if (!std::filesystem::is_regular_file(this->configPath))
+                {
+                    fprintf(stderr, "A config file at path \"%s\" does not exist.",
+                            this->configPath.c_str());
+                    exit(1);
+                }
+            }
+            else
+            {
+                fprintf(stderr, "The config argument (-c, --config) requires an "
+                                "absolute path to a config file.\n");
                 exit(1);
             }
 

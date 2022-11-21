@@ -11,8 +11,6 @@ BraceWrapping:
     AfterNamespace: false
     AfterCaseLabel: false
     BeforeCatch: true
-    BeforeLambdaBody: false
-    BeforeWhile: true
     SplitEmptyFunction: false
     AfterControlStatement: Always
     BeforeElse: true
