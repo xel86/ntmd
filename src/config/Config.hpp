@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ArgumentParser.hpp"
+
 #include <filesystem>
 
 namespace ntmd {
@@ -13,9 +15,12 @@ namespace ntmd {
 class Config
 {
   public:
-    Config(std::filesystem::path overridePath = {});
+    Config(std::filesystem::path overridePath);
 
     ~Config() = default;
+
+    /* Merges in the command line arguments to replace/update values from the config file. */
+    void mergeArgs(ArgumentParser& args);
 
     /* Writes config file to mFilePath using all the values currently set in the config class.
      * Using this upon class creation will write a default config to the default path. */

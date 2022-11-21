@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 
 namespace ntmd {
 
@@ -12,10 +13,10 @@ class ArgumentParser
     ~ArgumentParser();
 
     /* All arguments and their defaults */
-    bool daemon{false};
-    bool debug{false};
-    int interval{10};
-    std::filesystem::path configPath{};
+    std::optional<bool> daemon;
+    std::optional<bool> debug;
+    std::optional<int> interval;
+    std::optional<std::filesystem::path> configPath;
 };
 
 } // namespace ntmd

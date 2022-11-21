@@ -120,6 +120,11 @@ Config::Config(std::filesystem::path overridedPath)
     }
 }
 
+void Config::mergeArgs(ArgumentParser& args)
+{
+    this->interval = args.interval.value_or(this->interval);
+}
+
 void Config::writeConfig()
 {
     std::ofstream configFile(mFilePath);
