@@ -12,11 +12,14 @@ class ArgumentParser
     ArgumentParser(int argc, char** argv);
     ~ArgumentParser();
 
-    /* All arguments and their defaults */
-    std::optional<bool> daemon;
-    std::optional<bool> debug;
+    /* Command line arguments not present in the config file. */
+    bool daemon{false};
+    bool debug{false};
+    std::filesystem::path configPath{};
+
+    /* Command line arguments that have analogs to config file items.
+     * Args set here will take precedence over the config file items. */
     std::optional<int> interval;
-    std::optional<std::filesystem::path> configPath;
 };
 
 } // namespace ntmd

@@ -84,10 +84,10 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
             if (it + 1 != end)
             {
                 this->configPath = *(it + 1);
-                if (!std::filesystem::is_regular_file(this->configPath.value()))
+                if (!std::filesystem::is_regular_file(this->configPath))
                 {
                     fprintf(stderr, "A config file at path \"%s\" does not exist.\n",
-                            this->configPath.value().c_str());
+                            this->configPath.c_str());
                     exit(1);
                 }
             }
