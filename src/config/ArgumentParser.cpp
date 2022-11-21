@@ -86,7 +86,7 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 this->configPath = *(it + 1);
                 if (!std::filesystem::is_regular_file(this->configPath))
                 {
-                    fprintf(stderr, "A config file at path \"%s\" does not exist.",
+                    fprintf(stderr, "A config file at path \"%s\" does not exist.\n",
                             this->configPath.c_str());
                     exit(1);
                 }

@@ -12,6 +12,6 @@ int main(int argc, char** argv)
     std::cout << "Daemon: " << args.daemon << " Debug: " << args.debug
               << " Interval: " << args.interval << std::endl;
 
-    Config cfg;
+    Config cfg(args.configPath);
     std::cout << "Config interval value: " << cfg.interval << std::endl;
 }
