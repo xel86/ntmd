@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config/Config.hpp"
+
 #include <string>
 
 #include <pcap.h>
@@ -9,7 +11,7 @@ namespace ntmd {
 class Sniffer
 {
   public:
-    Sniffer(const std::string& device);
+    Sniffer(const Config& cfg);
     ~Sniffer();
 
     /* Trys to find and set the device given or if the device parameter

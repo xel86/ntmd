@@ -1,4 +1,5 @@
 #include "Sniffer.hpp"
+#include "config/Config.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -7,18 +8,26 @@
 
 #include <pcap.h>
 
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
 namespace ntmd {
 
-Sniffer::Sniffer(const std::string& device)
+Sniffer::Sniffer(const Config& cfg)
 {
+    const std::string& device = cfg.interface;
+    const int promiscuous = cfg.promiscuous ? 1 : 0;
+    const int immediate = cfg.immediate ? 1 : 0;
+
     findDevice(device);
     // TODO: Log device chosen to be monitored.
     std::cerr << "Chosen device: " << mDevice->name << "\n";
 
     /* TODO: Temporary settings! Investigate each individual setting and their impact.
      * Which ones should be configurable by user? */
-    int promiscuous = 0;
-    int immediate = 1;
     int timeoutLimit = 100; // milliseconds
     char errorBuffer[PCAP_ERRBUF_SIZE];
 

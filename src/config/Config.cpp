@@ -89,7 +89,7 @@ Config::Config(std::filesystem::path overridedPath)
     std::string line;
     while (std::getline(configFile, line))
     {
-        if (line.empty() || line[0] == '#')
+        if (line.empty() || line[0] == '#' || line[0] == '[')
         {
             continue;
         }
@@ -123,6 +123,18 @@ Config::Config(std::filesystem::path overridedPath)
     {
         this->interface = items["interface"];
     }
+
+    if (items.count("promiscuous"))
+    {
+        const std::string& val = util::strToLower(items["promiscuous"]);
+        this->promiscuous = util::stringToBool(val);
+    }
+
+    if (items.count("immediate"))
+    {
+        const std::string& val = util::strToLower(items["immediate"]);
+        this->immediate = util::stringToBool(val);
+    }
 }
 
 void Config::mergeArgs(ArgumentParser& args)
@@ -143,6 +155,7 @@ void Config::writeConfig()
     std::stringstream cfg;
     cfg << "#ntmd generated config file.\n\n";
 
+    cfg << "[ntmd]\n\n";
     cfg << "#Interval in seconds at which buffered network traffic in memory will be deposited to "
            "database.\n";
     cfg << "#Must be an integer value.\n"
@@ -150,10 +163,21 @@ void Config::writeConfig()
 
     cfg << "\n";
 
+    cfg << "[network]\n\n";
     cfg << "#Network interface to be search for for ntmd to monitor traffic on. If value left "
            "empty ntmd will use the first device found.\n";
     cfg << "#An example network interface could be eth0\n";
     cfg << "interface = " << this->interface << "\n";
+
+    cfg << "\n";
+
+    cfg << "[pcap]\n\n";
+    cfg << "#Enable or disable promiscuous mode while sniffing packets.\n";
+    cfg << "promiscuous = " << (this->promiscuous ? "true" : "false") << "\n\n";
+    cfg << "#Enable or disable immediate mode while sniffing packets.\n";
+    cfg << "#Immediate mode turned on will greatly increase average CPU usage but may decrease the "
+           "amount of unmatched packets.\n";
+    cfg << "immediate = " << (this->immediate ? "true" : "false") << "\n";
 
     configFile << cfg.str();
 }

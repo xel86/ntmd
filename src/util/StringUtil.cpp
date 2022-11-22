@@ -1,5 +1,9 @@
 #include "StringUtil.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <stdexcept>
+
 namespace ntmd::util {
 
 std::string trim(const std::string& s)
@@ -17,6 +21,23 @@ std::string trim(const std::string& s)
     } while (std::distance(start, end) > 0 && std::isspace(*end));
 
     return std::string(start, end + 1);
+}
+
+std::string& strToLower(std::string& s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
+bool stringToBool(const std::string& s)
+{
+    if (s == "true" || s == "yes" || s == "on" || s == "1")
+        return true;
+    else if (s == "false" || s == "no" || s == "off" || s == "0")
+        return false;
+    else
+        throw std::invalid_argument(
+            "String value does not match a valid boolean string representation.");
 }
 
 } // namespace ntmd::util

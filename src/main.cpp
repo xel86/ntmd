@@ -18,6 +18,8 @@ int main(int argc, char** argv)
     std::cout << "configPath: " << args.configPath << "\n";
     std::cout << "interval: " << cfg.interval << "\n";
     std::cout << "interface: " << cfg.interface << "\n";
+    std::cout << "promiscu: " << cfg.promiscuous << "\n";
+    std::cout << "immediate: " << cfg.immediate << "\n";
 
-    Sniffer sniffer(cfg.interface);
+    Sniffer sniffer(cfg);
 }

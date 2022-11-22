@@ -33,6 +33,10 @@ class Config
     int interval{10};
     /* Network interface for pcap to use instead of the default */
     std::string interface{};
+    /* PCAP promiscuous mode */
+    bool promiscuous{false};
+    /* PCAP immediate mode (much higher CPU usage but will potentially match more packets)*/
+    bool immediate{false};
 
   private:
     std::filesystem::path mFilePath{};
