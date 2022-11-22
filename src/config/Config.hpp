@@ -3,6 +3,7 @@
 #include "ArgumentParser.hpp"
 
 #include <filesystem>
+#include <string>
 
 namespace ntmd {
 
@@ -26,8 +27,12 @@ class Config
      * Using this upon class creation will write a default config to the default path. */
     void writeConfig();
 
+    /* All config options */
+
     /* Interval in seconds at which buffered network traffic in memory will be deposited to db */
     int interval{10};
+    /* Network interface for pcap to use instead of the default */
+    std::string interface{};
 
   private:
     std::filesystem::path mFilePath{};

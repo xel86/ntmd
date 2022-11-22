@@ -20,6 +20,7 @@ class ArgumentParser
     /* Command line arguments that have analogs to config file items.
      * Args set here will take precedence over the config file items. */
     std::optional<int> interval;
+    std::optional<std::string> interface;
 };
 
 } // namespace ntmd

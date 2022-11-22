@@ -17,6 +17,7 @@ Arguments:
   -x, --debug       Print additional debug information to log.
   -i, --interval    Interval in seconds to update database with buffered traffic.
   -c, --config      Absolute path to search for the config file location rather than defaults.
+  --interface       Network interface for ntmd to monitor traffic on (example: eth0)
   --daemon          Used to launch initial daemon process to monitor traffic.
 )";
 
@@ -95,6 +96,24 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
             {
                 fprintf(stderr, "The config argument (-c, --config) requires an "
                                 "absolute path to a config file.\n");
+                exit(1);
+            }
+
+            it++;
+            continue;
+        }
+
+        if (arg == "--interface")
+        {
+            if (it + 1 != end)
+            {
+                this->interface = *(it + 1);
+            }
+            else
+            {
+                std::cerr
+                    << "The interface argument (--interface) requires a string value indiciating "
+                       "the network interface for ntmd to monitor traffic from. (Example: eth0).\n";
                 exit(1);
             }
 

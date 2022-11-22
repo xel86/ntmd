@@ -1,5 +1,6 @@
 #include "config/ArgumentParser.hpp"
 #include "config/Config.hpp"
+#include "net/Sniffer.hpp"
 
 #include <iostream>
 
@@ -16,4 +17,7 @@ int main(int argc, char** argv)
     std::cout << "debug: " << args.debug << "\n";
     std::cout << "configPath: " << args.configPath << "\n";
     std::cout << "interval: " << cfg.interval << "\n";
+    std::cout << "interface: " << cfg.interface << "\n";
+
+    Sniffer sniffer(cfg.interface);
 }

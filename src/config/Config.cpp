@@ -118,11 +118,17 @@ Config::Config(std::filesystem::path overridedPath)
                 << items["interval"] << "\"). Defaulting to " << this->interval << "\n";
         }
     }
+
+    if (items.count("interface"))
+    {
+        this->interface = items["interface"];
+    }
 }
 
 void Config::mergeArgs(ArgumentParser& args)
 {
     this->interval = args.interval.value_or(this->interval);
+    this->interface = args.interface.value_or(this->interface);
 }
 
 void Config::writeConfig()
@@ -136,10 +142,18 @@ void Config::writeConfig()
 
     std::stringstream cfg;
     cfg << "#ntmd generated config file.\n\n";
+
     cfg << "#Interval in seconds at which buffered network traffic in memory will be deposited to "
            "database.\n";
     cfg << "#Must be an integer value.\n"
         << "interval = " << this->interval << "\n";
+
+    cfg << "\n";
+
+    cfg << "#Network interface to be search for for ntmd to monitor traffic on. If value left "
+           "empty ntmd will use the first device found.\n";
+    cfg << "#An example network interface could be eth0\n";
+    cfg << "interface = " << this->interface << "\n";
 
     configFile << cfg.str();
 }
