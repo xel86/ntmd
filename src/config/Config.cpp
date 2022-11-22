@@ -127,13 +127,32 @@ Config::Config(std::filesystem::path overridedPath)
     if (items.count("promiscuous"))
     {
         const std::string& val = util::strToLower(items["promiscuous"]);
-        this->promiscuous = util::stringToBool(val);
+
+        try
+        {
+            this->promiscuous = util::stringToBool(val);
+        }
+        catch (std::invalid_argument& ia)
+        {
+            std::cerr << "Config item \"promiscuous\" is attempting to be set with a non-boolean "
+                         "value (\""
+                      << items["promiscuous"] << "\"). Defaulting to " << this->promiscuous << "\n";
+        }
     }
 
     if (items.count("immediate"))
     {
         const std::string& val = util::strToLower(items["immediate"]);
-        this->immediate = util::stringToBool(val);
+        try
+        {
+            this->immediate = util::stringToBool(val);
+        }
+        catch (std::invalid_argument& ia)
+        {
+            std::cerr << "Config item \"immediate\" is attempting to be set with a non-boolean "
+                         "value (\""
+                      << items["immediate"] << "\"). Defaulting to " << this->immediate << "\n";
+        }
     }
 }
 

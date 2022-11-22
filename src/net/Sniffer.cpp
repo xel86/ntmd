@@ -8,12 +8,6 @@
 
 #include <pcap.h>
 
-#include <net/ethernet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-
 namespace ntmd {
 
 Sniffer::Sniffer(const Config& cfg)
