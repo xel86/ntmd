@@ -14,5 +14,4 @@ int main(int argc, char** argv)
     cfg.mergeArgs(args);
 
     Sniffer sniffer(cfg);
-    SnifferLoop lol;
 }

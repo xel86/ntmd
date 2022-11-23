@@ -28,6 +28,7 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
     {
     case IPPROTO_TCP: {
         tcphdr* tcpHeader = (tcphdr*)(rawPkt + offset);
+        this->type = PacketType::TCP;
         this->totalHeaderLen = offset + sizeof(tcpHeader->doff * 4);
         this->sport = ntohs(tcpHeader->source);
         this->dport = ntohs(tcpHeader->dest);
@@ -36,14 +37,35 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
 
     case IPPROTO_UDP: {
         udphdr* udpHeader = (udphdr*)(rawPkt + offset);
+        this->type = PacketType::UDP;
         this->totalHeaderLen = offset + 8; // UDP Header always 8 bytes.
         this->sport = ntohs(udpHeader->source);
         this->dport = ntohs(udpHeader->dest);
+
+        /* Further distinguish UDP packets */
+
+        /* DNS & MDNS Packets.
+         * https://stackoverflow.com/questions/7565300/identifying-dns-packets
+         */
+        if ((this->sport == 53 || this->dport == 53) ||
+            (this->sport == 5353 && this->dport == 5353))
+            this->type = PacketType::DNS;
+
+        /* SSDP packets.
+         * https://wiki.wireshark.org/SSDP
+         */
+        if (this->sport == 1900 || this->dport == 1900)
+            this->type = PacketType::SSDP;
+
+        /* NTP (Network Time Protocol) packets. */
+        if (this->sport == 123 && this->dport == 123)
+            this->type = PacketType::NTP;
     }
     break;
 
     case IPPROTO_ICMP: {
         icmphdr* icmpHeader = (icmphdr*)(rawPkt + offset);
+        this->type = PacketType::ICMP;
         this->totalHeaderLen = offset + 8; // ICMP Header always 8 bytes.
 
         /* ICMP has no ports. */
@@ -62,24 +84,35 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
 
 std::ostream& operator<<(std::ostream& os, const Packet& pkt)
 {
-    std::string protocolStr;
-    switch (pkt.protocol)
+    std::string typeStr;
+    switch (pkt.type)
     {
-    case IPPROTO_TCP:
-        protocolStr = "TCP";
+    case PacketType::TCP:
+        typeStr = "TCP";
         break;
-    case IPPROTO_UDP:
-        protocolStr = "UDP";
+    case PacketType::UDP:
+        typeStr = "UDP";
         break;
-    case IPPROTO_ICMP:
-        protocolStr = "ICMP";
+    case PacketType::ICMP:
+        typeStr = "ICMP";
         break;
+    case PacketType::DNS:
+        typeStr = "DNS";
+        break;
+    case PacketType::SSDP:
+        typeStr = "SSDP";
+        break;
+    case PacketType::NTP:
+        typeStr = "NTP";
+        break;
+
+    case PacketType::Unknown:
     default:
-        protocolStr = "Unknown (" + std::to_string(pkt.protocol) + ")";
+        typeStr = "Unknown (" + std::to_string(pkt.protocol) + ")";
         break;
     }
 
-    os << protocolStr << " Packet: {\n";
+    os << typeStr << " Packet: {\n";
 
     in_addr sAddr, dAddr;
     sAddr.s_addr = pkt.sip;

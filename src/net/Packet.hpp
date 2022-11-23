@@ -13,7 +13,20 @@ enum class Direction
     Unknown,
     Incoming,
     Outgoing,
-    NotOurs,
+};
+
+/* This is more a conceptual type, since not all are separated by protocol (i.e DNS & UDP) this
+ * separate enum will be used to identify types of packets that ntmd will treat differently other
+ * than just its protocol. */
+enum class PacketType
+{
+    Unknown,
+    TCP,
+    UDP,
+    ICMP,
+    DNS,
+    SSDP,
+    NTP,
 };
 
 struct Packet
@@ -23,6 +36,7 @@ struct Packet
 
     friend std::ostream& operator<<(std::ostream& os, const Packet& pkt);
 
+    PacketType type{PacketType::Unknown};    /* Packet type (TCP, DNS, ...)*/
     uint8_t protocol{0};                     /* Transport protocol used (tcp, udp, ...) */
     uint32_t sip{0};                         /* Source ip address */
     uint32_t dip{0};                         /* Destination ip address */
