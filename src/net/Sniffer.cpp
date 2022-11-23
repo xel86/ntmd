@@ -1,4 +1,5 @@
 #include "Sniffer.hpp"
+#include "IPList.hpp"
 #include "config/Config.hpp"
 
 #include <cstring>
@@ -49,6 +50,8 @@ Sniffer::Sniffer(const Config& cfg)
                   << errorBuffer << "\n";
         std::exit(1);
     }
+
+    mIPList.init(mDevice);
 
     pcap_loop(mHandle, -1, SnifferLoop::pktCallback, reinterpret_cast<u_char*>(this));
 }

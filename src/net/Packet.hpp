@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IPList.hpp"
+
 #include <cstdint>
 #include <ctime>
 #include <iostream>
@@ -31,7 +33,7 @@ enum class PacketType
 
 struct Packet
 {
-    Packet(const pcap_pkthdr* header, const u_char* rawPkt);
+    Packet(const pcap_pkthdr* header, const u_char* rawPkt, const IPList& iplist);
     ~Packet() = default;
 
     friend std::ostream& operator<<(std::ostream& os, const Packet& pkt);

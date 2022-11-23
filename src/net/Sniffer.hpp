@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IPList.hpp"
 #include "config/Config.hpp"
 
 #include <string>
@@ -29,6 +30,8 @@ class Sniffer
     friend void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char* bytes);
 
   private:
+    IPList mIPList;
+
     pcap_if* mDevice{nullptr};
     pcap_if_t* mDevices{nullptr};
     pcap_t* mHandle{nullptr};

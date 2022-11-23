@@ -1,4 +1,5 @@
 #include "Packet.hpp"
+#include "IPList.hpp"
 
 #include <net/ethernet.h>
 #include <netinet/in.h>
@@ -9,7 +10,7 @@
 
 namespace ntmd {
 
-Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
+Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt, const IPList& iplist)
 {
     // skip over ethernet header ( always 14 bytes ) and use ip header
     iphdr* ipHeader = (iphdr*)(rawPkt + sizeof(ethhdr));
@@ -21,7 +22,12 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
     this->dip = ipHeader->daddr;
     this->protocol = ipHeader->protocol;
 
-    /* TODO: Get packet direction based off local ip address. */
+    if (iplist.contains(this->sip))
+        this->direction = Direction::Outgoing;
+    else if (iplist.contains(this->dip))
+        this->direction = Direction::Incoming;
+    else
+        this->direction = Direction::Unknown;
 
     int offset = (ipHeaderLen) + sizeof(ethhdr);
     switch (this->protocol)
@@ -84,7 +90,7 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt)
 
 std::ostream& operator<<(std::ostream& os, const Packet& pkt)
 {
-    std::string typeStr;
+    std::string typeStr, directionStr;
     switch (pkt.type)
     {
     case PacketType::TCP:
@@ -112,7 +118,20 @@ std::ostream& operator<<(std::ostream& os, const Packet& pkt)
         break;
     }
 
-    os << typeStr << " Packet: {\n";
+    switch (pkt.direction)
+    {
+    case Direction::Incoming:
+        directionStr = "Incoming";
+        break;
+    case Direction::Outgoing:
+        directionStr = "Outgoing";
+        break;
+    case Direction::Unknown:
+        directionStr = "Unknown";
+        break;
+    }
+
+    os << directionStr << " " << typeStr << " Packet: {\n";
 
     in_addr sAddr, dAddr;
     sAddr.s_addr = pkt.sip;
