@@ -49,6 +49,8 @@ Sniffer::Sniffer(const Config& cfg)
                   << errorBuffer << "\n";
         std::exit(1);
     }
+
+    pcap_loop(mHandle, -1, SnifferLoop::pktCallback, reinterpret_cast<u_char*>(this));
 }
 
 void Sniffer::findDevice(const std::string& device)
