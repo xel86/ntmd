@@ -1,4 +1,5 @@
 #include "SocketIndex.hpp"
+#include "net/PacketHash.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -8,6 +9,8 @@
 #include <vector>
 
 namespace ntmd {
+
+using inode = uint64_t;
 
 SocketIndex::SocketIndex() { refresh(); }
 
@@ -55,8 +58,27 @@ void SocketIndex::refresh()
             sscanf(packedLocalIP, "%X", &sock.localIP);
             sscanf(packedRemoteIP, "%X", &sock.remoteIP);
 
-            mSocketMap[sock.inode] = sock;
+            /* Create packet hash from socket information
+             * for future sniffed packet to match against. */
+            PacketHash hash(sock.localIP, sock.localPort, sock.remoteIP, sock.remotePort);
+
+            mSocketMap[hash] = sock.inode;
         }
+    }
+}
+
+inode SocketIndex::get(const Packet& pkt)
+{
+    PacketHash hash(pkt);
+    const auto& found = mSocketMap.find(hash);
+    if (found != mSocketMap.end())
+    {
+        return found->second;
+    }
+    else
+    {
+        std::cerr << "Could not find an associated inode from the packet hash!\n";
+        return 0;
     }
 }
 

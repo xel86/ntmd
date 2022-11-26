@@ -1,6 +1,7 @@
 #include "config/ArgumentParser.hpp"
 #include "config/Config.hpp"
 #include "net/Sniffer.hpp"
+#include "proc/ProcessIndex.hpp"
 
 #include <iostream>
 

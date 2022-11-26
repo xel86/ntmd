@@ -1,5 +1,6 @@
 #include "Packet.hpp"
 #include "Sniffer.hpp"
+#include "proc/ProcessIndex.hpp"
 
 #include <pcap.h>
 
@@ -16,7 +17,18 @@ void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char
     // if (pkt.discard)
     //    return;
 
-    std::cerr << pkt << "\n\n";
+    auto process = s->mProcessResolver.resolve(pkt);
+    if (process.has_value())
+    {
+        const Process& proc = process->get();
+        std::cerr << "(" << proc.comm << ") " << pkt << "\n\n";
+    }
+    else
+    {
+        std::cerr << "("
+                  << "UNKNOWN"
+                  << ") " << pkt << "\n\n";
+    }
 }
 
 } // namespace ntmd

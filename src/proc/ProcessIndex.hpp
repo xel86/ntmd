@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <sys/types.h>
 #include <unordered_map>
@@ -24,6 +26,9 @@ class ProcessIndex
     ~ProcessIndex();
 
     void refresh();
+
+    /* Attempt to find and return a Process from the mProcessMap based on the inode key. */
+    std::optional<std::reference_wrapper<const Process>> get(inode inode);
 
   private:
     /* A process can own multiple socket file descriptors with different inodes, so for quick access

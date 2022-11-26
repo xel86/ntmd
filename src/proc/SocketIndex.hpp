@@ -1,5 +1,7 @@
 #pragma once
 
+#include "net/PacketHash.hpp"
+
 #include <cstdint>
 #include <unordered_map>
 
@@ -35,8 +37,12 @@ class SocketIndex
      */
     void refresh();
 
+    /* Gets the packet hash from the packet's local and remote ip/port values then
+     * attempts to find a corresponding socket and its inode. */
+    inode get(const Packet& pkt);
+
   private:
-    std::unordered_map<inode, Socket> mSocketMap;
+    std::unordered_map<PacketHash, inode> mSocketMap;
 };
 
 } // namespace ntmd

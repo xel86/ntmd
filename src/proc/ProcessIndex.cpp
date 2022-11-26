@@ -3,10 +3,14 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <optional>
 
 namespace ntmd {
+
+using inode = uint64_t;
 
 ProcessIndex::ProcessIndex() { refresh(); }
 
@@ -40,6 +44,20 @@ void ProcessIndex::refresh()
                 mProcessMap[inode] = process;
             }
         }
+    }
+}
+
+std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode inode)
+{
+    const auto& found = mProcessMap.find(inode);
+    if (found != mProcessMap.end())
+    {
+        return found->second;
+    }
+    else
+    {
+        std::cerr << "Could not find a process associated with that inode.\n";
+        return std::nullopt;
     }
 }
 
