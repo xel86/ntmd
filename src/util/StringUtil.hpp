@@ -17,4 +17,7 @@ std::string& strToLower(std::string& s);
  * Throws an exception if not any of these. */
 bool stringToBool(const std::string& s);
 
+/* Determines if a string represents a number. All characters are digits. */
+bool isNumber(const std::string& s);
+
 } // namespace ntmd::util

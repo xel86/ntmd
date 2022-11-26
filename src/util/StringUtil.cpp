@@ -40,4 +40,18 @@ bool stringToBool(const std::string& s)
             "String value does not match a valid boolean string representation.");
 }
 
+bool isNumber(const std::string& s)
+{
+    if (s.empty())
+        return false;
+
+    for (const char& c : s)
+    {
+        if (!std::isdigit(c))
+            return false;
+    }
+
+    return true;
+}
+
 } // namespace ntmd::util

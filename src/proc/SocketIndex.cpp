@@ -1,6 +1,5 @@
 #include "SocketIndex.hpp"
 
-#include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
