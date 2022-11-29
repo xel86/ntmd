@@ -11,16 +11,21 @@ namespace ntmd {
  * /proc/net/ table for said socket.*/
 struct PacketHash
 {
+    PacketHash() = default;
+
     PacketHash(const Packet& pkt);
     PacketHash(uint32_t localip, uint16_t localport, uint32_t remoteip, uint16_t remoteport) :
         ip1(localip), port1(localport), ip2(remoteip), port2(remoteport){};
 
+    /* For use with UDP sockets that don't have a set local/remote ip address. */
+    PacketHash(uint16_t localport) : ip1(0), port1(localport), ip2(0), port2(0){};
+
     ~PacketHash() = default;
 
-    uint32_t ip1;
-    uint16_t port1;
-    uint32_t ip2;
-    uint16_t port2;
+    uint32_t ip1{0};
+    uint16_t port1{0};
+    uint32_t ip2{0};
+    uint16_t port2{0};
 
     bool operator==(const PacketHash& other) const
     {

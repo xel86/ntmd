@@ -1,6 +1,8 @@
 #include "ProcessIndex.hpp"
+#include "util/LRUArray.hpp"
 #include "util/StringUtil.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -24,27 +26,136 @@ void ProcessIndex::refresh()
 
         pid_t pid = std::stoi(dir);
 
-        /* Find any socket file descriptors the process may own. */
-        for (const auto& fd : std::filesystem::directory_iterator{"/proc/" + dir + "/fd"})
+        /* Do not search PID that are in cache since they will have been searched already. */
+        if (mLRUCache.contains(pid))
+        {
+            continue;
+        }
+
+        try
+        {
+            /* Find any socket file descriptors the process may own. */
+            for (const auto& fd : std::filesystem::directory_iterator{"/proc/" + dir + "/fd"})
+            {
+                if (!fd.is_symlink())
+                    continue;
+
+                std::string link;
+                try
+                {
+                    link = std::filesystem::read_symlink(fd);
+                }
+                catch (const std::filesystem::filesystem_error& fe)
+                {
+                    std::cerr
+                        << "Tried to read a socket symlink that was deleted after it was found. ("
+                        << fd << ")\n";
+                }
+
+                inode inode;
+                if (link.rfind("socket:", 0) == 0)
+                {
+                    /* socket:[12345]  -> 12345 */
+                    inode = std::stoi(link.substr(8, link.size()));
+
+                    Process process;
+
+                    std::ifstream comm("/proc/" + dir + "/comm");
+                    if (!comm.is_open())
+                    {
+                        std::cerr << "Error opening comm file for PID " << pid
+                                  << ". Process could have been deleted while processing it.\n";
+                        break;
+                    }
+                    else
+                    {
+                        std::getline(comm, process.comm);
+                    }
+
+                    process.pid = pid;
+
+                    mProcessMap[inode] = process;
+                }
+            }
+        }
+        catch (const std::filesystem::filesystem_error& fe)
+        {
+            std::cerr << "Tried to read from a process's PID folder that was deleted after it was "
+                         "found. ("
+                      << "/proc/ " << pid << ")\n";
+        }
+    }
+}
+
+bool ProcessIndex::refreshCached(inode target)
+{
+    bool found = false;
+    for (const pid_t& pid : mLRUCache.iterator())
+    {
+        if (found)
+            break;
+
+        std::string strPid = std::to_string(pid);
+        std::string fdPath = "/proc/" + strPid + "/fd";
+
+        /* If the PID in cache no longer exists, skip it. */
+        if (!std::filesystem::exists(fdPath))
+        {
+            /* TODO: Remove from cache? (Add erase method to LRUArray) */
+            continue;
+        }
+
+        for (const auto& fd : std::filesystem::directory_iterator{fdPath})
         {
             if (!fd.is_symlink())
                 continue;
 
-            const std::string& link = std::filesystem::read_symlink(fd);
+            std::string link;
+            try
+            {
+                link = std::filesystem::read_symlink(fd);
+            }
+            catch (const std::filesystem::filesystem_error& fe)
+            {
+                std::cerr << "Tried to read a socket symlink that was deleted after it was found. ("
+                          << fd << ")\n";
+            }
+
             inode inode;
             if (link.rfind("socket:", 0) == 0)
             {
                 /* socket:[12345]  -> 12345 */
                 inode = std::stoi(link.substr(8, link.size()));
 
-                std::ifstream comm("/proc/" + dir + "/comm");
                 Process process;
-                std::getline(comm, process.comm);
+
+                std::ifstream comm("/proc/" + strPid + "/comm");
+                if (!comm.is_open())
+                {
+                    std::cerr << "Error opening comm file for PID " << strPid
+                              << ". Process could have been deleted while processing it.\n";
+                    break;
+                }
+                else
+                {
+                    std::getline(comm, process.comm);
+                }
+
+                process.pid = pid;
+
+                if (inode == target)
+                {
+                    std::cerr << "Successful cache hit for process " << process.comm << " inode "
+                              << target << "\n";
+                    found = true;
+                }
 
                 mProcessMap[inode] = process;
             }
         }
     }
+
+    return found;
 }
 
 std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode inode)
@@ -56,8 +167,30 @@ std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode ino
     }
     else
     {
-        std::cerr << "Could not find a process associated with that inode.\n";
-        return std::nullopt;
+        /* Attempt to find new socket in the most recently used cache, if we didn't get a hit then
+         * do a full refresh */
+        bool hit = refreshCached(inode);
+
+        if (!hit)
+            refresh();
+
+        const auto& found = mProcessMap.find(inode);
+        if (found != mProcessMap.end())
+        {
+            const Process& process = found->second;
+            if (!hit)
+                std::cerr << "Succesfully refreshed and found new process: " << process.comm
+                          << " with inode: " << inode << "\n";
+
+            mLRUCache.update(process.pid);
+
+            return process;
+        }
+        else
+        {
+            std::cerr << "Could not find a process associated with that inode[" << inode << "].\n";
+            return std::nullopt;
+        }
     }
 }
 

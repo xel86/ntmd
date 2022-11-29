@@ -14,10 +14,11 @@ void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char
 
     /* We will discard packets we don't care about in the future.
      * For now lets see all of them for debugging. */
-    // if (pkt.discard)
-    //    return;
+    if (pkt.discard)
+        return;
 
     auto process = s->mProcessResolver.resolve(pkt);
+    /*
     if (process.has_value())
     {
         const Process& proc = process->get();
@@ -29,6 +30,7 @@ void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char
                   << "UNKNOWN"
                   << ") " << pkt << "\n\n";
     }
+    */
 }
 
 } // namespace ntmd

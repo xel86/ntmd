@@ -3,7 +3,9 @@
 #include "net/PacketHash.hpp"
 
 #include <cstdint>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ntmd {
 
@@ -35,7 +37,7 @@ class SocketIndex
      * /proc/net/raw
      * /proc/net/raw6
      */
-    void refresh();
+    void refresh(const std::vector<std::string>& tables);
 
     /* Gets the packet hash from the packet's local and remote ip/port values then
      * attempts to find a corresponding socket and its inode. */

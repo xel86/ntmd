@@ -2,6 +2,7 @@
 #include "IPList.hpp"
 
 #include <net/ethernet.h>
+#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
@@ -12,6 +13,15 @@ namespace ntmd {
 
 Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt, const IPList& iplist)
 {
+    /* Discard anything but IPV4 packets for now. */
+    /* TODO: Support IPV6 */
+    ether_header* eth_header = (ether_header*)rawPkt;
+    if (ntohs(eth_header->ether_type) != ETHERTYPE_IP)
+    {
+        this->discard = true;
+        return;
+    }
+
     // skip over ethernet header ( always 14 bytes ) and use ip header
     iphdr* ipHeader = (iphdr*)(rawPkt + sizeof(ethhdr));
     unsigned short ipHeaderLen = ipHeader->ihl * 4;

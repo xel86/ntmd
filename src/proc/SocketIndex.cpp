@@ -12,11 +12,10 @@ namespace ntmd {
 
 using inode = uint64_t;
 
-SocketIndex::SocketIndex() { refresh(); }
+SocketIndex::SocketIndex() { refresh({"/proc/net/tcp", "/proc/net/udp", "/proc/net/raw"}); }
 
-void SocketIndex::refresh()
+void SocketIndex::refresh(const std::vector<std::string>& tables)
 {
-    const std::vector<std::string> tables = {"/proc/net/tcp", "/proc/net/udp", "/proc/net/raw"};
     for (const std::string& table : tables)
     {
         std::ifstream fs(table);
@@ -58,9 +57,24 @@ void SocketIndex::refresh()
             sscanf(packedLocalIP, "%X", &sock.localIP);
             sscanf(packedRemoteIP, "%X", &sock.remoteIP);
 
+            /* TODO: REMOVE
+            std::cerr << "SOCKET LINE DECODED: " << inet_ntoa(in_addr{.s_addr = sock.localIP})
+                      << ":" << sock.localPort << " -> ";
+            std::cerr << inet_ntoa(in_addr{.s_addr = sock.remoteIP}) << ":" << sock.remotePort
+                      << "\n";
+                      */
+
+            PacketHash hash;
             /* Create packet hash from socket information
              * for future sniffed packet to match against. */
-            PacketHash hash(sock.localIP, sock.localPort, sock.remoteIP, sock.remotePort);
+            if (table == "/proc/net/udp")
+            {
+                hash = PacketHash(sock.localPort);
+            }
+            else
+            {
+                hash = PacketHash(sock.localIP, sock.localPort, sock.remoteIP, sock.remotePort);
+            }
 
             mSocketMap[hash] = sock.inode;
         }
@@ -77,8 +91,34 @@ inode SocketIndex::get(const Packet& pkt)
     }
     else
     {
-        std::cerr << "Could not find an associated inode from the packet hash!\n";
-        return 0;
+        if (pkt.type == PacketType::TCP)
+        {
+            /* TODO: Handle IPV4 Mapped IPV6 addresses, and/or fully support IPV6 (runelite) */
+            /* Just parsing tcp6 table like ipv4 tcp table works ?? (investigate) */
+            refresh({"/proc/net/tcp"});
+            refresh({"/proc/net/tcp6"});
+        }
+        else if (pkt.type == PacketType::UDP)
+        {
+            refresh({"/proc/net/udp"});
+        }
+        else
+        {
+            // refresh({"/proc/net/tcp", "/proc/net/udp", "/proc/net/raw"});
+            return 0;
+        }
+
+        const auto& found = mSocketMap.find(hash);
+        if (found != mSocketMap.end())
+        {
+            return found->second;
+        }
+        else
+        {
+            std::cerr << "Could not find an associated socket inode for the packet: " << pkt
+                      << "\n";
+            return 0;
+        }
     }
 }
 
