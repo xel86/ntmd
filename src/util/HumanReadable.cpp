@@ -6,7 +6,7 @@ namespace ntmd::util {
 
 const char* units[] = {"B", "KB", "MB", "GB", "TB", "PB"};
 
-std::string BytesToHuman(uint64_t bytes)
+std::string bytesToHuman(uint64_t bytes)
 {
     double b = static_cast<double>(bytes);
 
@@ -23,7 +23,7 @@ std::string BytesToHuman(uint64_t bytes)
     return std::string(str);
 }
 
-std::string BytesToHumanOvertime(uint64_t bytes, unsigned seconds)
+std::string bytesToHumanOvertime(uint64_t bytes, unsigned seconds)
 {
     double b = static_cast<double>(bytes) / seconds;
 
