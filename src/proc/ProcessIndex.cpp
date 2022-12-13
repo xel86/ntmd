@@ -34,6 +34,21 @@ void ProcessIndex::refresh()
 
         try
         {
+
+            /* Get name of process through the comm file. */
+            std::string comm;
+            std::ifstream commFile("/proc/" + dir + "/comm");
+            if (!commFile.is_open())
+            {
+                std::cerr << "Error opening comm file for PID " << pid
+                          << ". Process could have been deleted while processing it.\n";
+                break;
+            }
+            else
+            {
+                std::getline(commFile, comm);
+            }
+
             /* Find any socket file descriptors the process may own. */
             for (const auto& fd : std::filesystem::directory_iterator{"/proc/" + dir + "/fd"})
             {
@@ -60,19 +75,8 @@ void ProcessIndex::refresh()
 
                     Process process;
 
-                    std::ifstream comm("/proc/" + dir + "/comm");
-                    if (!comm.is_open())
-                    {
-                        std::cerr << "Error opening comm file for PID " << pid
-                                  << ". Process could have been deleted while processing it.\n";
-                        break;
-                    }
-                    else
-                    {
-                        std::getline(comm, process.comm);
-                    }
-
                     process.pid = pid;
+                    process.comm = comm;
 
                     mProcessMap[inode] = process;
                 }
@@ -105,6 +109,20 @@ bool ProcessIndex::refreshCached(inode target)
             continue;
         }
 
+        /* Get name of process through the comm file. */
+        std::string comm;
+        std::ifstream commFile("/proc/" + strPid + "/comm");
+        if (!commFile.is_open())
+        {
+            std::cerr << "Error opening comm file for PID " << pid
+                      << ". Process could have been deleted while processing it.\n";
+            break;
+        }
+        else
+        {
+            std::getline(commFile, comm);
+        }
+
         for (const auto& fd : std::filesystem::directory_iterator{fdPath})
         {
             if (!fd.is_symlink())
@@ -129,19 +147,8 @@ bool ProcessIndex::refreshCached(inode target)
 
                 Process process;
 
-                std::ifstream comm("/proc/" + strPid + "/comm");
-                if (!comm.is_open())
-                {
-                    std::cerr << "Error opening comm file for PID " << strPid
-                              << ". Process could have been deleted while processing it.\n";
-                    break;
-                }
-                else
-                {
-                    std::getline(comm, process.comm);
-                }
-
                 process.pid = pid;
+                process.comm = comm;
 
                 if (inode == target)
                 {

@@ -37,7 +37,11 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt, const IPList& ip
     else if (iplist.contains(this->dip))
         this->direction = Direction::Incoming;
     else
+    {
         this->direction = Direction::Unknown;
+        this->discard = true;
+        return;
+    }
 
     int offset = (ipHeaderLen) + sizeof(ethhdr);
     switch (this->protocol)
@@ -59,23 +63,33 @@ Packet::Packet(const pcap_pkthdr* header, const u_char* rawPkt, const IPList& ip
         this->dport = ntohs(udpHeader->dest);
 
         /* Further distinguish UDP packets */
+        /* TODO: Make placeholder applications for these special packets */
 
         /* DNS & MDNS Packets.
          * https://stackoverflow.com/questions/7565300/identifying-dns-packets
          */
         if ((this->sport == 53 || this->dport == 53) ||
             (this->sport == 5353 && this->dport == 5353))
+        {
             this->type = PacketType::DNS;
+            this->discard = true;
+        }
 
         /* SSDP packets.
          * https://wiki.wireshark.org/SSDP
          */
         if (this->sport == 1900 || this->dport == 1900)
+        {
             this->type = PacketType::SSDP;
+            this->discard = true;
+        }
 
         /* NTP (Network Time Protocol) packets. */
         if (this->sport == 123 && this->dport == 123)
+        {
             this->type = PacketType::NTP;
+            this->discard = true;
+        }
     }
     break;
 

@@ -3,6 +3,7 @@
 #include "IPList.hpp"
 #include "config/Config.hpp"
 #include "proc/ProcessResolver.hpp"
+#include "traffic/TrafficStorage.hpp"
 
 #include <string>
 
@@ -33,6 +34,7 @@ class Sniffer
   private:
     IPList mIPList;
     ProcessResolver mProcessResolver;
+    TrafficStorage mTrafficStorage;
 
     pcap_if* mDevice{nullptr};
     pcap_if_t* mDevices{nullptr};
