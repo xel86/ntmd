@@ -154,12 +154,27 @@ Config::Config(std::filesystem::path overridedPath)
                       << items["immediate"] << "\"). Defaulting to " << this->immediate << "\n";
         }
     }
+
+    if (items.count("dbPath"))
+    {
+        this->dbPath = items["dbPath"];
+        if (!std::filesystem::is_regular_file(this->dbPath))
+        {
+            fprintf(stderr, "A database file at path \"%s\" does not exist, it will be created.\n",
+                    this->dbPath.c_str());
+        }
+    }
+
+    /* This will ensure the config is up to date after adding new config items.
+     * Keeps current config values and adds new fields with their defaults. */
+    this->writeConfig();
 }
 
 void Config::mergeArgs(ArgumentParser& args)
 {
     this->interval = args.interval.value_or(this->interval);
     this->interface = args.interface.value_or(this->interface);
+    this->dbPath = args.dbPath.value_or(this->dbPath);
 }
 
 void Config::writeConfig()
@@ -197,6 +212,13 @@ void Config::writeConfig()
     cfg << "#Immediate mode turned on will greatly increase average CPU usage but may decrease the "
            "amount of unmatched packets.\n";
     cfg << "immediate = " << (this->immediate ? "true" : "false") << "\n";
+
+    cfg << "\n";
+    cfg << "[database]\n\n";
+    cfg << "#Path to the database file that will be used for reading and writing application "
+           "network traffic.\n";
+    cfg << "#If left empty the default for root is /var/lib/ntmd.db and non-root is ~/.ntmd.db.\n";
+    cfg << "dbPath = " << this->dbPath.string() << "\n";
 
     configFile << cfg.str();
 }

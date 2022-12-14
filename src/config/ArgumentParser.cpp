@@ -17,7 +17,8 @@ Arguments:
   -x, --debug       Print additional debug information to log.
   -i, --interval    Interval in seconds to update database with buffered traffic.
   -c, --config      Absolute path to search for the config file location rather than defaults.
-  --interface       Network interface for ntmd to monitor traffic on (example: eth0)
+  --interface       Network interface for ntmd to monitor traffic on (example: eth0).
+  --db-path         Path to database file to be used for reading and writing traffic.
   --daemon          Used to launch initial daemon process to monitor traffic.
 )";
 
@@ -114,6 +115,29 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 std::cerr
                     << "The interface argument (--interface) requires a string value indiciating "
                        "the network interface for ntmd to monitor traffic from. (Example: eth0).\n";
+                exit(1);
+            }
+
+            it++;
+            continue;
+        }
+
+        if (arg == "--db-path")
+        {
+            if (it + 1 != end)
+            {
+                this->dbPath = *(it + 1);
+                if (!std::filesystem::is_regular_file(this->dbPath.value()))
+                {
+                    fprintf(stderr,
+                            "A database file at path \"%s\" does not exist, it will be created.\n",
+                            this->dbPath.value().c_str());
+                }
+            }
+            else
+            {
+                fprintf(stderr, "The database argument (-c, --config) requires an "
+                                "absolute path to a database file.\n");
                 exit(1);
             }
 

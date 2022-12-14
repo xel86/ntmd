@@ -29,14 +29,18 @@ class Config
 
     /* All config options */
 
-    /* Interval in seconds at which buffered network traffic in memory will be deposited to db */
+    /* Interval in seconds at which buffered network traffic in memory will be deposited to db. */
     int interval{10};
-    /* Network interface for pcap to use instead of the default */
-    std::string interface{};
-    /* PCAP promiscuous mode */
+    /* Network interface for pcap to use instead of the default. */
+    std::string interface {};
+    /* PCAP promiscuous mode. */
     bool promiscuous{false};
-    /* PCAP immediate mode (much higher CPU usage but will potentially match more packets)*/
+    /* PCAP immediate mode (much higher CPU usage but will potentially match more packets). */
     bool immediate{false};
+    /* Database path for traffic reading and writing.
+     * If we are root, default is /var/lib/ntmd.db
+     * If we are not-root, default is ~/.ntmd.db */
+    std::filesystem::path dbPath{};
 
   private:
     std::filesystem::path mFilePath{};

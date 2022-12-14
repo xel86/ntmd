@@ -32,10 +32,9 @@ void TrafficStorage::add(const Process& process, const Packet& pkt)
 void TrafficStorage::displayLoop()
 {
     std::thread loop([&] {
-        const int interval = 5;
         while (true)
         {
-            std::this_thread::sleep_for(std::chrono::seconds(interval));
+            std::this_thread::sleep_for(std::chrono::seconds(mInterval));
 
             std::unique_lock<std::mutex> lock(mMutex);
 
@@ -43,8 +42,8 @@ void TrafficStorage::displayLoop()
             for (const auto& [name, line] : mApplicationTraffic)
             {
                 std::cerr << "  ";
-                std::cerr << name << " { rx: " << util::bytesToHumanOvertime(line.pktRx, interval)
-                          << ", tx: " << util::bytesToHumanOvertime(line.pktTx, interval)
+                std::cerr << name << " { rx: " << util::bytesToHumanOvertime(line.pktRx, mInterval)
+                          << ", tx: " << util::bytesToHumanOvertime(line.pktTx, mInterval)
                           << ", rxc: " << line.pktRxCount << ", txc: " << line.pktTxCount << " }\n";
             }
             std::cerr << "\n";

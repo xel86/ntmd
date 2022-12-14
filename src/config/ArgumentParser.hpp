@@ -21,6 +21,7 @@ class ArgumentParser
      * Args set here will take precedence over the config file items. */
     std::optional<int> interval;
     std::optional<std::string> interface;
+    std::optional<std::filesystem::path> dbPath;
 };
 
 } // namespace ntmd

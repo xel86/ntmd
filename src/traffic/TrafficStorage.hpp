@@ -1,21 +1,15 @@
 #pragma once
 
+#include "DBConnector.hpp"
 #include "net/Packet.hpp"
 #include "proc/ProcessIndex.hpp"
 
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 
 namespace ntmd {
-
-struct TrafficLine
-{
-    uint64_t pktRx{0}; /* Bytes received. */
-    uint64_t pktTx{0}; /* Bytes transmitted. */
-    int pktRxCount{0}; /* Number of packets received. */
-    int pktTxCount{0}; /* Number of packets transmitted. */
-};
 
 /* In memory storage for network traffic monitored from all processes
  * since the last database deposit. The TrafficStorage is cleared on a
@@ -23,7 +17,7 @@ struct TrafficLine
 class TrafficStorage
 {
   public:
-    TrafficStorage() = default;
+    TrafficStorage(std::filesystem::path dbPath, int interval) : mDB(dbPath), mInterval(interval){};
     ~TrafficStorage() = default;
 
     /* Adds the packet length (amount of bytes rx/tx) to
@@ -40,6 +34,9 @@ class TrafficStorage
      * the process' comm name */
     std::unordered_map<std::string, TrafficLine> mApplicationTraffic{};
     std::mutex mMutex;
+
+    DBConnector mDB;
+    int mInterval;
 };
 
 } // namespace ntmd
