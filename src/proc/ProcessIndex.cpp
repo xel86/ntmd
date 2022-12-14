@@ -3,12 +3,15 @@
 #include "util/StringUtil.hpp"
 
 #include <algorithm>
+#include <cstring>
+#include <dirent.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <unistd.h>
 
 namespace ntmd {
 
@@ -18,100 +21,36 @@ ProcessIndex::ProcessIndex() { refresh(); }
 
 void ProcessIndex::refresh()
 {
-    for (const auto& dirEntry : std::filesystem::directory_iterator{"/proc"})
+    /* Throughout the project I've tried to stick with using mostly modern c++ abstractions that are
+     * nearly zero-cost, but unfortunately in the situation of iterating over directories often
+     * std::filesystem::directory_iterator is painfully slow compared to using DIR & dirent. */
+
+    DIR* procDir = opendir("/proc");
+    if (procDir == nullptr)
     {
-        const std::string& dir = dirEntry.path().filename();
-        if (!util::isNumber(dir))
+        std::cerr << "Failed to open the /proc directory, error: " << strerror(errno)
+                  << ". Cannot proceed, exiting.";
+        std::exit(1);
+    }
+
+    dirent* procEntry;
+    while ((procEntry = readdir(procDir)))
+    {
+        /* Check if the entry in proc represents a process directory. */
+        if (procEntry->d_type != DT_DIR || !util::isNumber(procEntry->d_name))
             continue;
 
-        pid_t pid = std::stoi(dir);
+        const std::string& pidStr = procEntry->d_name;
+        const pid_t pid = std::stoi(pidStr);
 
-        /* Do not search PID that are in cache since they will have been searched already. */
+        /* Do not search PIDs that are in cache since they will have been searched already. */
         if (mLRUCache.contains(pid))
         {
             continue;
         }
 
-        try
-        {
-
-            /* Get name of process through the comm file. */
-            std::string comm;
-            std::ifstream commFile("/proc/" + dir + "/comm");
-            if (!commFile.is_open())
-            {
-                std::cerr << "Error opening comm file for PID " << pid
-                          << ". Process could have been deleted while processing it.\n";
-                break;
-            }
-            else
-            {
-                std::getline(commFile, comm);
-            }
-
-            /* Find any socket file descriptors the process may own. */
-            for (const auto& fd : std::filesystem::directory_iterator{"/proc/" + dir + "/fd"})
-            {
-                if (!fd.is_symlink())
-                    continue;
-
-                std::string link;
-                try
-                {
-                    link = std::filesystem::read_symlink(fd);
-                }
-                catch (const std::filesystem::filesystem_error& fe)
-                {
-                    std::cerr
-                        << "Tried to read a socket symlink that was deleted after it was found. ("
-                        << fd << ")\n";
-                }
-
-                inode inode;
-                if (link.rfind("socket:", 0) == 0)
-                {
-                    /* socket:[12345]  -> 12345 */
-                    inode = std::stoi(link.substr(8, link.size()));
-
-                    Process process;
-
-                    process.pid = pid;
-                    process.comm = comm;
-
-                    mProcessMap[inode] = process;
-                }
-            }
-        }
-        catch (const std::filesystem::filesystem_error& fe)
-        {
-            std::cerr << "Tried to read from a process's PID folder that was deleted after it was "
-                         "found. ("
-                      << "/proc/ " << pid << ")\n";
-        }
-    }
-}
-
-bool ProcessIndex::refreshCached(inode target)
-{
-    bool found = false;
-    for (const pid_t& pid : mLRUCache.iterator())
-    {
-        if (found)
-            break;
-
-        std::string strPid = std::to_string(pid);
-        std::string fdPath = "/proc/" + strPid + "/fd";
-
-        /* If the PID in cache no longer exists, skip it. */
-        if (!std::filesystem::exists(fdPath))
-        {
-            /* TODO: Remove from cache? (Add erase method to LRUArray) */
-            continue;
-        }
-
-        /* Get name of process through the comm file. */
         std::string comm;
-        std::ifstream commFile("/proc/" + strPid + "/comm");
+        std::ifstream commFile("/proc/" + pidStr + "/comm");
         if (!commFile.is_open())
         {
             std::cerr << "Error opening comm file for PID " << pid
@@ -123,21 +62,114 @@ bool ProcessIndex::refreshCached(inode target)
             std::getline(commFile, comm);
         }
 
-        for (const auto& fd : std::filesystem::directory_iterator{fdPath})
+        const std::string fdPath = "/proc/" + pidStr + "/fd";
+        DIR* fdDir = opendir(fdPath.c_str());
+        if (fdDir == nullptr)
         {
-            if (!fd.is_symlink())
+            std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
+                         "after it was "
+                         "found. ("
+                      << "/proc/ " << pidStr << ")\n";
+            continue;
+        }
+
+        /* Find any socket file descriptors the process may own. */
+        dirent* fdEntry;
+        while ((fdEntry = readdir(fdDir)))
+        {
+            /* Socket file desciptors are always symbolic links */
+            if (fdEntry->d_type != DT_LNK)
                 continue;
 
-            std::string link;
-            try
+            const std::string linkPath = fdPath + "/" + fdEntry->d_name;
+            char linkRaw[80];
+
+            /* Skip if file desciptor was deleted before we were able to read it. */
+            if (readlink(linkPath.c_str(), linkRaw, 79) < 0)
             {
-                link = std::filesystem::read_symlink(fd);
+                continue;
             }
-            catch (const std::filesystem::filesystem_error& fe)
+            const std::string& link = linkRaw;
+
+            inode inode;
+            if (link.rfind("socket:", 0) == 0)
             {
-                std::cerr << "Tried to read a socket symlink that was deleted after it was found. ("
-                          << fd << ")\n";
+                /* socket:[12345]  -> 12345 */
+                inode = std::stoi(link.substr(8, link.size()));
+
+                Process process;
+
+                process.pid = pid;
+                process.comm = comm;
+
+                mProcessMap[inode] = process;
             }
+        }
+
+        closedir(fdDir);
+    }
+
+    closedir(procDir);
+}
+
+bool ProcessIndex::refreshCached(inode target)
+{
+    bool found = false;
+    for (const pid_t& pid : mLRUCache.iterator())
+    {
+        if (found)
+            break;
+
+        const std::string pidStr = std::to_string(pid);
+        const std::string fdPath = "/proc/" + pidStr + "/fd";
+
+        /* If the PID in cache no longer exists, skip it. */
+        if (!std::filesystem::exists(fdPath))
+        {
+            /* TODO: Remove from cache? (Add erase method to LRUArray) */
+            continue;
+        }
+
+        std::string comm;
+        std::ifstream commFile("/proc/" + pidStr + "/comm");
+        if (!commFile.is_open())
+        {
+            std::cerr << "Error opening comm file for PID " << pid
+                      << ". Process could have been deleted while processing it.\n";
+            break;
+        }
+        else
+        {
+            std::getline(commFile, comm);
+        }
+
+        DIR* fdDir = opendir(fdPath.c_str());
+        if (fdDir == nullptr)
+        {
+            std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
+                         "after it was "
+                         "found. ("
+                      << "/proc/ " << pidStr << ")\n";
+            continue;
+        }
+
+        /* Find any socket file descriptors the process may own. */
+        dirent* fdEntry;
+        while ((fdEntry = readdir(fdDir)))
+        {
+            /* Socket file desciptors are always symbolic links */
+            if (fdEntry->d_type != DT_LNK)
+                continue;
+
+            const std::string linkPath = fdPath + "/" + fdEntry->d_name;
+            char linkRaw[80];
+
+            /* Skip if file desciptor was deleted before we were able to read it. */
+            if (readlink(linkPath.c_str(), linkRaw, 79) < 0)
+            {
+                continue;
+            }
+            const std::string& link = linkRaw;
 
             inode inode;
             if (link.rfind("socket:", 0) == 0)
@@ -160,6 +192,8 @@ bool ProcessIndex::refreshCached(inode target)
                 mProcessMap[inode] = process;
             }
         }
+
+        closedir(fdDir);
     }
 
     return found;

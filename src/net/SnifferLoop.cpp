@@ -18,16 +18,9 @@ void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char
         return;
 
     auto process = s->mProcessResolver.resolve(pkt);
+
     if (process.has_value())
-    {
         s->mTrafficStorage.add(process->get(), pkt);
-    }
-    else
-    {
-        std::cerr << "("
-                  << "UNKNOWN"
-                  << ") " << pkt << "\n\n";
-    }
 }
 
 } // namespace ntmd
