@@ -54,4 +54,18 @@ bool isNumber(const std::string& s)
     return true;
 }
 
+bool isAlphanumeric(const std::string& s)
+{
+    if (s.empty())
+        return true;
+
+    for (const char& c : s)
+    {
+        if (!std::isalnum(c))
+            return false;
+    }
+
+    return true;
+}
+
 } // namespace ntmd::util

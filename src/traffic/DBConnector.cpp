@@ -1,5 +1,6 @@
 #include "DBConnector.hpp"
 #include "util/FilesystemUtil.hpp"
+#include "util/StringUtil.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -71,6 +72,14 @@ void DBConnector::insertApplicationTraffic(
     // TODO: Can this be done faster/prettier?
     for (const auto& [name, line] : traffic)
     {
+        if (!util::isAlphanumeric(name))
+        {
+            std::cerr << "Tried inserting traffic into database for an application with a comm "
+                         "name that contains non-alphanumeric character. "
+                         "Skipping to avoid potential sql injection.\n";
+            continue;
+        }
+
         char sqlReplaced[512];
         snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str(), name.c_str());
 
