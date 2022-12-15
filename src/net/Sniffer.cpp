@@ -52,7 +52,6 @@ Sniffer::Sniffer(const Config& cfg) : mTrafficStorage(cfg.dbPath, cfg.interval)
     }
 
     mIPList.init(mDevice);
-    mTrafficStorage.displayLoop();
 
     pcap_loop(mHandle, -1, SnifferLoop::pktCallback, reinterpret_cast<u_char*>(this));
 }
