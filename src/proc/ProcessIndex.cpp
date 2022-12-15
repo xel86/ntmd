@@ -115,6 +115,8 @@ void ProcessIndex::refresh()
 bool ProcessIndex::refreshCached(inode target)
 {
     bool found = false;
+    std::vector<pid_t> expired;
+
     for (const pid_t& pid : mLRUCache.iterator())
     {
         if (found)
@@ -126,7 +128,7 @@ bool ProcessIndex::refreshCached(inode target)
         /* If the PID in cache no longer exists, skip it. */
         if (!std::filesystem::exists(fdPath))
         {
-            mLRUCache.erase(pid);
+            expired.push_back(pid);
             continue;
         }
 
@@ -194,6 +196,13 @@ bool ProcessIndex::refreshCached(inode target)
         }
 
         closedir(fdDir);
+    }
+
+    /* Erase expired pid's in cache outside of previous loop
+     * to ensure the iterator doesn't become invalid. */
+    for (const pid_t& pid : expired)
+    {
+        mLRUCache.erase(pid);
     }
 
     return found;
