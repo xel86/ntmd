@@ -2,6 +2,7 @@
 #include "util/FilesystemUtil.hpp"
 #include "util/StringUtil.hpp"
 
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <sqlite3.h>
@@ -10,6 +11,8 @@
 #include <unordered_map>
 
 namespace ntmd {
+
+using TrafficMap = std::unordered_map<std::string, TrafficLine>;
 
 DBConnector::DBConnector(std::filesystem::path dbPath)
 {
@@ -51,20 +54,19 @@ DBConnector::DBConnector(std::filesystem::path dbPath)
 
 DBConnector::~DBConnector() { sqlite3_close(mHandle); }
 
-void DBConnector::insertApplicationTraffic(
-    const std::unordered_map<std::string, TrafficLine>& traffic)
+void DBConnector::insertApplicationTraffic(const TrafficMap& traffic)
 {
     char* err;
     sqlite3_exec(mHandle, "BEGIN TRANSACTION", nullptr, nullptr, &err);
 
-    char sqlCreateTable[512] = "CREATE TABLE IF NOT EXISTS %s ("
-                               "timestamp INT PRIMARY KEY NOT NULL, "
-                               "bytesRx INT DEFAULT 0, "
-                               "bytesTx INT DEFAULT 0, "
-                               "pktRxCount INT DEFAULT 0, "
-                               "pktTxCount INT DEFAULT 0);";
+    const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS %s ("
+                                 "timestamp INT PRIMARY KEY NOT NULL, "
+                                 "bytesRx INT DEFAULT 0, "
+                                 "bytesTx INT DEFAULT 0, "
+                                 "pktRxCount INT DEFAULT 0, "
+                                 "pktTxCount INT DEFAULT 0);";
 
-    char sqlInsertValues[256] = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);";
+    const char* sqlInsertValues = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);";
 
     sqlite3_stmt* stmt;
     time_t timestamp = std::time(nullptr);
@@ -85,7 +87,7 @@ void DBConnector::insertApplicationTraffic(
         char sqlReplaced[512];
         snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str());
 
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, NULL);
+        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, nullptr);
         int ret = sqlite3_step(stmt);
         if (ret != SQLITE_DONE)
         {
@@ -95,7 +97,7 @@ void DBConnector::insertApplicationTraffic(
         sqlite3_reset(stmt);
 
         snprintf(sqlReplaced, 512, sqlInsertValues, name.c_str());
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, NULL);
+        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, nullptr);
         sqlite3_bind_int(stmt, 1, timestamp);
         sqlite3_bind_int(stmt, 2, line.bytesRx);
         sqlite3_bind_int(stmt, 3, line.bytesTx);
@@ -113,6 +115,67 @@ void DBConnector::insertApplicationTraffic(
 
     sqlite3_exec(mHandle, "COMMIT TRANSACTION", nullptr, nullptr, &err);
     sqlite3_finalize(stmt);
+}
+
+TrafficMap DBConnector::fetchTrafficSince(time_t timestamp)
+{
+    char sql[256];
+    snprintf(sql, 256, "select * from %%s where timestamp >= %ld;", timestamp);
+
+    return fetchTrafficWithQuery(sql);
+}
+
+TrafficMap DBConnector::fetchTrafficBetween(time_t start, time_t end)
+{
+    char sql[256];
+    snprintf(sql, 256, "select * from %%s where timestamp >= %ld and timestamp <= %ld;", start,
+             end);
+
+    return fetchTrafficWithQuery(sql);
+}
+
+void DBConnector::fetchApplicationNames(TrafficMap& traffic)
+{
+    const char* sqlGetApps = "select name from sqlite_schema where type='table';";
+
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v3(mHandle, sqlGetApps, strlen(sqlGetApps), 0, &stmt, nullptr);
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+
+        if (name != nullptr)
+            traffic[name] = TrafficLine{};
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+TrafficMap DBConnector::fetchTrafficWithQuery(const char* query)
+{
+    TrafficMap traffic;
+
+    fetchApplicationNames(traffic);
+
+    for (auto& [name, line] : traffic)
+    {
+        char sqlReplaced[256];
+        snprintf(sqlReplaced, 256, query, name.c_str());
+
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v3(mHandle, sqlReplaced, 256, 0, &stmt, nullptr);
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            line.bytesRx += sqlite3_column_int64(stmt, 1);
+            line.bytesTx += sqlite3_column_int64(stmt, 2);
+            line.pktRxCount += sqlite3_column_int64(stmt, 3);
+            line.pktTxCount += sqlite3_column_int64(stmt, 4);
+        }
+
+        sqlite3_finalize(stmt);
+    }
+
+    return traffic;
 }
 
 } // namespace ntmd

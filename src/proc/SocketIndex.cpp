@@ -57,13 +57,6 @@ void SocketIndex::refresh(const std::vector<std::string>& tables)
             sscanf(packedLocalIP, "%X", &sock.localIP);
             sscanf(packedRemoteIP, "%X", &sock.remoteIP);
 
-            /* TODO: REMOVE
-            std::cerr << "SOCKET LINE DECODED: " << inet_ntoa(in_addr{.s_addr = sock.localIP})
-                      << ":" << sock.localPort << " -> ";
-            std::cerr << inet_ntoa(in_addr{.s_addr = sock.remoteIP}) << ":" << sock.remotePort
-                      << "\n";
-                      */
-
             PacketHash hash;
             /* Create packet hash from socket information
              * for future sniffed packet to match against. */
