@@ -75,13 +75,15 @@ void DBConnector::insertApplicationTraffic(
         if (!util::isAlphanumeric(name))
         {
             std::cerr << "Tried inserting traffic into database for an application with a comm "
-                         "name that contains non-alphanumeric character. "
+                         "name that contains non-alphanumeric character(s): "
+                      << name
+                      << "\n"
                          "Skipping to avoid potential sql injection.\n";
             continue;
         }
 
         char sqlReplaced[512];
-        snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str(), name.c_str());
+        snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str());
 
         sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, NULL);
         int ret = sqlite3_step(stmt);
@@ -92,7 +94,7 @@ void DBConnector::insertApplicationTraffic(
 
         sqlite3_reset(stmt);
 
-        snprintf(sqlReplaced, 512, sqlInsertValues, name.c_str(), name.c_str());
+        snprintf(sqlReplaced, 512, sqlInsertValues, name.c_str());
         sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, NULL);
         sqlite3_bind_int(stmt, 1, timestamp);
         sqlite3_bind_int(stmt, 2, line.bytesRx);

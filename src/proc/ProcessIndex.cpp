@@ -126,7 +126,7 @@ bool ProcessIndex::refreshCached(inode target)
         /* If the PID in cache no longer exists, skip it. */
         if (!std::filesystem::exists(fdPath))
         {
-            /* TODO: Remove from cache? (Add erase method to LRUArray) */
+            mLRUCache.erase(pid);
             continue;
         }
 

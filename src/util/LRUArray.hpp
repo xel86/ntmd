@@ -58,6 +58,13 @@ class LRUArray
         return (std::find(mDeque.begin(), mDeque.end(), item) != mDeque.end());
     }
 
+    void erase(T item)
+    {
+        auto pos = std::find(mDeque.begin(), mDeque.end(), item);
+        if (pos != mDeque.end())
+            mDeque.erase(pos);
+    }
+
     /* Returns a const iterator to the underlying data structure. */
     const std::deque<T>& iterator() const { return mDeque; }
 
