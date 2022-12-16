@@ -11,7 +11,8 @@
 
 namespace ntmd {
 
-Sniffer::Sniffer(const Config& cfg) : mTrafficStorage(cfg.dbPath, cfg.interval)
+Sniffer::Sniffer(const Config& cfg, TrafficStorage& trafficStorage) :
+    mTrafficStorage(trafficStorage)
 {
     const std::string& device = cfg.interface;
     const int promiscuous = cfg.promiscuous ? 1 : 0;

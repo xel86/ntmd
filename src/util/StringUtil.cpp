@@ -54,18 +54,18 @@ bool isNumber(const std::string& s)
     return true;
 }
 
-bool isAlphanumeric(const std::string& s)
+bool containsSemicolon(const std::string& s)
 {
     if (s.empty())
-        return true;
+        return false;
 
     for (const char& c : s)
     {
-        if (!std::isalnum(c))
-            return false;
+        if (c == ';')
+            return true;
     }
 
-    return true;
+    return false;
 }
 
 } // namespace ntmd::util

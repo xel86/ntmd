@@ -1,4 +1,4 @@
-#include "DBConnector.hpp"
+#include "DBController.hpp"
 #include "util/FilesystemUtil.hpp"
 #include "util/StringUtil.hpp"
 
@@ -14,7 +14,7 @@ namespace ntmd {
 
 using TrafficMap = std::unordered_map<std::string, TrafficLine>;
 
-DBConnector::DBConnector(std::filesystem::path dbPath)
+DBController::DBController(std::filesystem::path dbPath)
 {
     if (dbPath.empty())
     {
@@ -52,21 +52,21 @@ DBConnector::DBConnector(std::filesystem::path dbPath)
     std::cerr << "Successfully opened or created database file at: " << dbPath << "\n";
 }
 
-DBConnector::~DBConnector() { sqlite3_close(mHandle); }
+DBController::~DBController() { sqlite3_close(mHandle); }
 
-void DBConnector::insertApplicationTraffic(const TrafficMap& traffic)
+void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
 {
     char* err;
     sqlite3_exec(mHandle, "BEGIN TRANSACTION", nullptr, nullptr, &err);
 
-    const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS %s ("
+    const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS \"%s\" ("
                                  "timestamp INT PRIMARY KEY NOT NULL, "
                                  "bytesRx INT DEFAULT 0, "
                                  "bytesTx INT DEFAULT 0, "
                                  "pktRxCount INT DEFAULT 0, "
                                  "pktTxCount INT DEFAULT 0);";
 
-    const char* sqlInsertValues = "INSERT INTO %s VALUES (?, ?, ?, ?, ?);";
+    const char* sqlInsertValues = "INSERT INTO \"%s\" VALUES (?, ?, ?, ?, ?);";
 
     sqlite3_stmt* stmt;
     time_t timestamp = std::time(nullptr);
@@ -74,7 +74,7 @@ void DBConnector::insertApplicationTraffic(const TrafficMap& traffic)
     // TODO: Can this be done faster/prettier?
     for (const auto& [name, line] : traffic)
     {
-        if (!util::isAlphanumeric(name))
+        if (util::containsSemicolon(name))
         {
             std::cerr << "Tried inserting traffic into database for an application with a comm "
                          "name that contains non-alphanumeric character(s): "
@@ -117,24 +117,24 @@ void DBConnector::insertApplicationTraffic(const TrafficMap& traffic)
     sqlite3_finalize(stmt);
 }
 
-TrafficMap DBConnector::fetchTrafficSince(time_t timestamp)
+TrafficMap DBController::fetchTrafficSince(time_t timestamp) const
 {
     char sql[256];
-    snprintf(sql, 256, "select * from %%s where timestamp >= %ld;", timestamp);
+    snprintf(sql, 256, "select * from \"%%s\" where timestamp >= %ld;", timestamp);
 
     return fetchTrafficWithQuery(sql);
 }
 
-TrafficMap DBConnector::fetchTrafficBetween(time_t start, time_t end)
+TrafficMap DBController::fetchTrafficBetween(time_t start, time_t end) const
 {
     char sql[256];
-    snprintf(sql, 256, "select * from %%s where timestamp >= %ld and timestamp <= %ld;", start,
+    snprintf(sql, 256, "select * from \"%%s\" where timestamp >= %ld and timestamp <= %ld;", start,
              end);
 
     return fetchTrafficWithQuery(sql);
 }
 
-void DBConnector::fetchApplicationNames(TrafficMap& traffic)
+void DBController::fetchApplicationNames(TrafficMap& traffic) const
 {
     const char* sqlGetApps = "select name from sqlite_schema where type='table';";
 
@@ -151,7 +151,7 @@ void DBConnector::fetchApplicationNames(TrafficMap& traffic)
     sqlite3_finalize(stmt);
 }
 
-TrafficMap DBConnector::fetchTrafficWithQuery(const char* query)
+TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
 {
     TrafficMap traffic;
 

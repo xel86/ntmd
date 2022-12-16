@@ -22,7 +22,7 @@ struct SnifferLoop
 class Sniffer
 {
   public:
-    Sniffer(const Config& cfg);
+    Sniffer(const Config& cfg, TrafficStorage& trafficStorage);
     ~Sniffer();
 
     /* Trys to find and set the device given or if the device parameter
@@ -34,7 +34,7 @@ class Sniffer
   private:
     IPList mIPList;
     ProcessResolver mProcessResolver;
-    TrafficStorage mTrafficStorage;
+    TrafficStorage& mTrafficStorage;
 
     pcap_if* mDevice{nullptr};
     pcap_if_t* mDevices{nullptr};
