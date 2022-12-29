@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <sys/types.h>
@@ -22,7 +23,7 @@ struct Process
 /* Index of all processes and their associated socket file descriptors in the /proc directory. */
 class ProcessIndex
 {
-    using inode = uint16_t;
+    using inode = uint64_t;
 
   public:
     ProcessIndex();
@@ -49,6 +50,13 @@ class ProcessIndex
      * avoiding full /proc refreshs to find new sockets from these cached programs.
      * Discards the least recently used pid once reached max size. */
     LRUArray<pid_t> mLRUCache = LRUArray<pid_t>(3);
+
+    /* For packets and their socket inodes that we cannot find a corresponding process for, add them
+     * to a not found list so that we don't continously hammer the CPU trying to find a process that
+     * we already know we can't find for every additional packet sniffed. Idealy this list should be
+     * empty or very small. */
+    std::unordered_map<inode, bool> mCouldNotFind;
+    std::mutex mMutex;
 };
 
 } // namespace ntmd

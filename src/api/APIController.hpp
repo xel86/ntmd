@@ -16,7 +16,9 @@ class APIController
     void startSocketServer();
 
     /* API Commands */
+    void liveText(int socketfd);
     void live(int socketfd);
+    void snapshot(int socketfd);
 
     TrafficStorage& mTrafficStorage;
     const DBController& mDB;

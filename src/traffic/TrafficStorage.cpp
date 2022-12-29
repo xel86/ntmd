@@ -42,8 +42,14 @@ std::pair<TrafficMap, int> TrafficStorage::getLiveSnapshot() const
     return {mApplicationTraffic, mInterval};
 }
 
-void TrafficStorage::hookLiveAPI(std::mutex& mutex, TrafficMap& traffic, int& interval)
+bool TrafficStorage::awaitSnapshot(std::mutex& mutex, TrafficMap& traffic, int& interval)
 {
+    std::unique_lock<std::mutex> lock(mMutex);
+
+    /* TODO: Only one thread can be waiting (for now). */
+    if (mAPIWaiting)
+        return false;
+
     mAPIWaiting = true;
     apiMutex = &mutex;
     apiTrafficMap = &traffic;
@@ -52,6 +58,7 @@ void TrafficStorage::hookLiveAPI(std::mutex& mutex, TrafficMap& traffic, int& in
     /* Once we have pointers to the desired variables to place the live updated traffic data, lock
      * the mutex so that the caller of this method can wait until we have set them. */
     apiMutex->lock();
+    return true;
 }
 
 void TrafficStorage::displayLoop()
@@ -76,6 +83,7 @@ void TrafficStorage::displayLoop()
 
             mDB.insertApplicationTraffic(mApplicationTraffic);
 
+            // TODO: multiple listeners?
             /* If the APIController is hooked into the traffic storage and waiting to receive live
              * traffic updates, set the api member variables with our internal traffic structures
              * and let the API controller know it has received the updated traffic by unlocking

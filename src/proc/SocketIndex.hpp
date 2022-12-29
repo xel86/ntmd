@@ -11,11 +11,11 @@ namespace ntmd {
 
 struct Socket
 {
-    uint32_t localIP;
-    uint32_t remoteIP;
-    uint16_t localPort;
-    uint16_t remotePort;
-    uint64_t inode;
+    uint32_t localIP{0};
+    uint32_t remoteIP{0};
+    uint16_t localPort{0};
+    uint16_t remotePort{0};
+    uint64_t inode{0};
 };
 
 /* Index for all sockets in the /proc/net tables. Such as /proc/net/tcp.

@@ -3,6 +3,7 @@
 #include "util/StringUtil.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <dirent.h>
 #include <filesystem>
@@ -11,13 +12,30 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <thread>
 #include <unistd.h>
 
 namespace ntmd {
 
 using inode = uint64_t;
 
-ProcessIndex::ProcessIndex() { refresh(); }
+ProcessIndex::ProcessIndex()
+{
+    refresh();
+
+    /* Clear out list of inode's that we have failed to find a process for in the past every 60
+     * seconds to avoid re-used inodes from being skipped. */
+    std::thread loop([this] {
+        while (true)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+
+            std::unique_lock<std::mutex> lock(mMutex);
+            mCouldNotFind.clear();
+        }
+    });
+    loop.detach();
+}
 
 void ProcessIndex::refresh()
 {
@@ -210,6 +228,14 @@ bool ProcessIndex::refreshCached(inode target)
 
 std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode inode)
 {
+    /* If we have recently failed to find the process for the given inode already,
+     * don't search for it again. */
+    std::unique_lock<std::mutex> lock(mMutex);
+    if (mCouldNotFind.count(inode))
+    {
+        return std::nullopt;
+    }
+
     const auto& found = mProcessMap.find(inode);
     if (found != mProcessMap.end())
     {
@@ -239,6 +265,7 @@ std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode ino
         else
         {
             std::cerr << "Could not find a process associated with that inode[" << inode << "].\n";
+            mCouldNotFind[inode] = true;
             return std::nullopt;
         }
     }

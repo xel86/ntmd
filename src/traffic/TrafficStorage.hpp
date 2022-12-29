@@ -27,13 +27,16 @@ class TrafficStorage
      * the application's total traffic during this interval. */
     void add(const Process& process, const Packet& pkt);
 
+    /* Returns snapshot of whatever traffic data is stored in memory before database deposit.
+     * Could be empty if called right after database deposit interval,
+     * use awaitSnapshot if this is a concern. */
     std::pair<TrafficMap, int> getLiveSnapshot() const;
 
     /* Method to synchronously set the live in-memory traffic to the given variables in a different
      * thread. The given mutex must be unlocked, and the caller should immediately try to lock it
      * after this method call. Once the caller has relocked their mutex the traffic and interval
      * variables will be set. */
-    void hookLiveAPI(std::mutex& mutex, TrafficMap& traffic, int& interval);
+    bool awaitSnapshot(std::mutex& mutex, TrafficMap& traffic, int& interval);
 
   private:
     /* Display all applications and their accumulated traffic to stderr.

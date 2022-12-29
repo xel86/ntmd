@@ -4,6 +4,8 @@
 #include "traffic/TrafficStorage.hpp"
 #include "util/HumanReadable.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -14,6 +16,8 @@
 #include <thread>
 #include <unistd.h>
 #include <unordered_map>
+
+using json = nlohmann::json;
 
 namespace ntmd {
 
@@ -78,15 +82,25 @@ void APIController::startSocketServer()
                 continue;
             }
 
-            valread = read(newSocket, buffer, 1024);
-            std::string request = std::string(buffer);
+            valread = read(newSocket, buffer, sizeof(buffer));
+            buffer[valread] = '\0';
 
-            // TODO: json!
+            std::string request = std::string(buffer);
+            std::cerr << "GOT API REQUEST: " << request << "\n";
+
             /* Handle API requests.
              * API Handlers are responsible for closing the socket belonging to the requester. */
-            if (request == "live")
+            if (request == "live-text")
+            {
+                this->liveText(newSocket);
+            }
+            else if (request == "live")
             {
                 this->live(newSocket);
+            }
+            else if (request == "snapshot")
+            {
+                this->snapshot(newSocket);
             }
             else
             {
@@ -101,22 +115,36 @@ void APIController::startSocketServer()
     loop.detach();
 }
 
-void APIController::live(int socketfd)
+void APIController::liveText(int socketfd)
 {
     std::thread updates([this, socketfd] {
+        const char* welcomeMsg =
+            "Connected to ntmd live traffic update stream, awaiting first traffic interval.\n";
+
+        /* If remote peer closes connection, return. */
+        if (send(socketfd, welcomeMsg, strlen(welcomeMsg), MSG_NOSIGNAL) < 0)
+        {
+            return;
+        }
+
         while (true)
         {
             std::unordered_map<std::string, TrafficLine> trafficMap;
             int interval;
-            std::mutex liveHook;
+            std::mutex await;
 
             /* Send pointers to our trafficMap and interval variables to the traffic storage so that
              * it can set them with the updated values at the proper time. This will also lock the
              * mutex sent in. */
-            mTrafficStorage.hookLiveAPI(liveHook, trafficMap, interval);
+            if (!mTrafficStorage.awaitSnapshot(await, trafficMap, interval))
+            {
+                const char* msg = "Only one live API stream at a time is currently supported.";
+                send(socketfd, msg, strlen(msg), MSG_NOSIGNAL);
+                break;
+            }
 
             /* Wait until the traffic storage has set our variables and unlocked the mutex. */
-            liveHook.lock();
+            await.lock();
 
             std::stringstream ss;
             ss << "Application Traffic:\n";
@@ -139,6 +167,83 @@ void APIController::live(int socketfd)
         close(socketfd);
     });
     updates.detach();
+}
+
+void APIController::live(int socketfd)
+{
+    std::thread updates([this, socketfd] {
+        while (true)
+        {
+            std::unordered_map<std::string, TrafficLine> trafficMap;
+            int interval;
+            std::mutex await;
+
+            /* Send pointers to our trafficMap and interval variables to the traffic storage so that
+             * it can set them with the updated values at the proper time. This will also lock the
+             * mutex sent in. */
+            if (!mTrafficStorage.awaitSnapshot(await, trafficMap, interval))
+            {
+                const char* msg = "Only one live API stream at a time is currently supported.";
+                send(socketfd, msg, strlen(msg), MSG_NOSIGNAL);
+                break;
+            }
+
+            /* Wait until the traffic storage has set our variables and unlocked the mutex. */
+            await.lock();
+
+            json payload;
+            payload["length"] = trafficMap.size();
+            payload["result"] = "success";
+
+            for (const auto& [name, line] : trafficMap)
+            {
+                payload["data"][name] = {
+                    {"bytesRx", line.bytesRx},       {"bytesTx", line.bytesTx},
+                    {"pktRxCount", line.pktRxCount}, {"pktTxCount", line.pktTxCount},
+                    {"interval", interval},
+                };
+            }
+
+            std::string msg = payload.dump();
+
+            /* If remote peer closes connection, break. */
+            if (send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL) < 0)
+            {
+                break;
+            }
+        }
+        close(socketfd);
+    });
+    updates.detach();
+}
+
+void APIController::snapshot(int socketfd)
+{
+    auto trafficSnapshot = mTrafficStorage.getLiveSnapshot();
+
+    const std::unordered_map<std::string, TrafficLine>& trafficMap = trafficSnapshot.first;
+    const int& interval = trafficSnapshot.second;
+
+    std::stringstream ss;
+
+    json payload;
+    payload["length"] = trafficMap.size();
+    payload["result"] = "success";
+
+    for (const auto& [name, line] : trafficMap)
+    {
+        payload["data"][name] = {
+            {"bytesRx", line.bytesRx},       {"bytesTx", line.bytesTx},
+            {"pktRxCount", line.pktRxCount}, {"pktTxCount", line.pktTxCount},
+            {"interval", interval},
+        };
+    }
+
+    std::string msg = payload.dump();
+
+    send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL);
+
+    close(socketfd);
 }
 
 } // namespace ntmd
