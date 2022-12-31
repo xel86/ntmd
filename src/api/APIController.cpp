@@ -3,9 +3,11 @@
 #include "traffic/DBController.hpp"
 #include "traffic/TrafficStorage.hpp"
 #include "util/HumanReadable.hpp"
+#include "util/StringUtil.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -85,27 +87,133 @@ void APIController::startSocketServer()
             valread = read(newSocket, buffer, sizeof(buffer));
             buffer[valread] = '\0';
 
-            std::string request = std::string(buffer);
-            std::cerr << "GOT API REQUEST: " << request << "\n";
+            std::string strbuf = std::string(buffer);
+            std::vector<std::string> request = util::split(strbuf);
+
+            const std::string& cmd = request[0];
 
             /* Handle API requests.
              * API Handlers are responsible for closing the socket belonging to the requester. */
-            if (request == "live-text")
+            if (cmd == "live-text")
             {
                 this->liveText(newSocket);
             }
-            else if (request == "live")
+            else if (cmd == "live")
             {
                 this->live(newSocket);
             }
-            else if (request == "snapshot")
+            else if (cmd == "snapshot")
             {
                 this->snapshot(newSocket);
             }
+            else if (cmd == "traffic-daily")
+            {
+                this->trafficDaily(newSocket);
+            }
+            else if (cmd == "traffic-since")
+            {
+                if (request.size() >= 2)
+                {
+                    /* Expected Parameters: time_t ts */
+                    time_t ts;
+
+                    try
+                    {
+                        ts = std::stoi(request[1]);
+                    }
+                    catch (const std::invalid_argument& ia)
+                    {
+                        json err;
+                        err["result"] = "error";
+                        err["errmsg"] = "Invalid timestamp parameter for traffic-since.";
+                        std::string msg = err.dump();
+
+                        send(newSocket, msg.c_str(), msg.size(), 0);
+                        close(newSocket);
+                        continue;
+                    }
+                    catch (const std::out_of_range& oor)
+                    {
+                        json err;
+                        err["result"] = "error";
+                        err["errmsg"] = "Timestamp parameter value too large for traffic-since.";
+                        std::string msg = err.dump();
+
+                        send(newSocket, msg.c_str(), msg.size(), 0);
+                        close(newSocket);
+                        continue;
+                    }
+
+                    this->trafficSince(newSocket, ts);
+                }
+                else
+                {
+                    json err;
+                    err["result"] = "error";
+                    err["errmsg"] = "Missing timestamp parameter for traffic-since.";
+                    std::string msg = err.dump();
+
+                    send(newSocket, msg.c_str(), msg.size(), 0);
+                    close(newSocket);
+                }
+            }
+            else if (cmd == "traffic-between")
+            {
+                if (request.size() >= 3)
+                {
+                    /* Expected Parameters: time_t start, end */
+                    time_t start, end;
+
+                    try
+                    {
+                        start = std::stoi(request[1]);
+                        end = std::stoi(request[2]);
+                    }
+                    catch (const std::invalid_argument& ia)
+                    {
+                        json err;
+                        err["result"] = "error";
+                        err["errmsg"] = "Invalid timestamp parameter(s) for traffic-between.";
+                        std::string msg = err.dump();
+
+                        send(newSocket, msg.c_str(), msg.size(), 0);
+                        close(newSocket);
+                        continue;
+                    }
+                    catch (const std::out_of_range& oor)
+                    {
+                        json err;
+                        err["result"] = "error";
+                        err["errmsg"] =
+                            "Timestamp parameter value(s) too large for traffic-between.";
+                        std::string msg = err.dump();
+
+                        send(newSocket, msg.c_str(), msg.size(), 0);
+                        close(newSocket);
+                        continue;
+                    }
+
+                    this->trafficBetween(newSocket, start, end);
+                }
+                else
+                {
+                    json err;
+                    err["result"] = "error";
+                    err["errmsg"] = "Missing timestamp parameter(s) for traffic-between.";
+                    std::string msg = err.dump();
+
+                    send(newSocket, msg.c_str(), msg.size(), 0);
+                    close(newSocket);
+                }
+            }
             else
             {
-                const char* msg = "Unknown request.";
-                send(newSocket, msg, strlen(msg), 0);
+                json err;
+                err["result"] = "error";
+                err["errmsg"] = "Unknown command.";
+                std::string msg = err.dump();
+
+                send(newSocket, msg.c_str(), msg.size(), 0);
                 close(newSocket);
             }
         }
@@ -129,7 +237,7 @@ void APIController::liveText(int socketfd)
 
         while (true)
         {
-            std::unordered_map<std::string, TrafficLine> trafficMap;
+            TrafficMap trafficMap;
             int interval;
             std::mutex await;
 
@@ -174,7 +282,7 @@ void APIController::live(int socketfd)
     std::thread updates([this, socketfd] {
         while (true)
         {
-            std::unordered_map<std::string, TrafficLine> trafficMap;
+            TrafficMap trafficMap;
             int interval;
             std::mutex await;
 
@@ -183,26 +291,21 @@ void APIController::live(int socketfd)
              * mutex sent in. */
             if (!mTrafficStorage.awaitSnapshot(await, trafficMap, interval))
             {
-                const char* msg = "Only one live API stream at a time is currently supported.";
-                send(socketfd, msg, strlen(msg), MSG_NOSIGNAL);
+                json err;
+                err["result"] = "error";
+                err["errmsg"] = "Only one live API stream at a time is currently supported.";
+                std::string msg = err.dump();
+
+                send(socketfd, msg.c_str(), msg.size(), 0);
                 break;
             }
 
             /* Wait until the traffic storage has set our variables and unlocked the mutex. */
             await.lock();
 
-            json payload;
-            payload["length"] = trafficMap.size();
+            json payload = trafficToJson(trafficMap);
+            payload["interval"] = interval;
             payload["result"] = "success";
-
-            for (const auto& [name, line] : trafficMap)
-            {
-                payload["data"][name] = {
-                    {"bytesRx", line.bytesRx},       {"bytesTx", line.bytesTx},
-                    {"pktRxCount", line.pktRxCount}, {"pktTxCount", line.pktTxCount},
-                    {"interval", interval},
-                };
-            }
 
             std::string msg = payload.dump();
 
@@ -221,29 +324,87 @@ void APIController::snapshot(int socketfd)
 {
     auto trafficSnapshot = mTrafficStorage.getLiveSnapshot();
 
-    const std::unordered_map<std::string, TrafficLine>& trafficMap = trafficSnapshot.first;
+    const TrafficMap& trafficMap = trafficSnapshot.first;
     const int& interval = trafficSnapshot.second;
 
-    std::stringstream ss;
-
-    json payload;
-    payload["length"] = trafficMap.size();
+    json payload = trafficToJson(trafficMap);
+    payload["interval"] = interval;
     payload["result"] = "success";
-
-    for (const auto& [name, line] : trafficMap)
-    {
-        payload["data"][name] = {
-            {"bytesRx", line.bytesRx},       {"bytesTx", line.bytesTx},
-            {"pktRxCount", line.pktRxCount}, {"pktTxCount", line.pktTxCount},
-            {"interval", interval},
-        };
-    }
 
     std::string msg = payload.dump();
 
     send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL);
 
     close(socketfd);
+}
+
+void APIController::trafficDaily(int socketfd)
+{
+    time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    auto day = std::localtime(&now);
+    day->tm_hour = 0;
+    day->tm_min = 0;
+    day->tm_sec = 0;
+
+    time_t startOfCurrentDay = std::mktime(day);
+
+    auto trafficMap = mDB.fetchTrafficSince(startOfCurrentDay);
+
+    json payload = trafficToJson(trafficMap);
+    payload["result"] = "success";
+
+    std::string msg = payload.dump();
+
+    send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL);
+
+    close(socketfd);
+}
+
+void APIController::trafficSince(int socketfd, time_t ts)
+{
+    auto trafficMap = mDB.fetchTrafficSince(ts);
+
+    json payload = trafficToJson(trafficMap);
+    payload["result"] = "success";
+
+    std::string msg = payload.dump();
+
+    send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL);
+
+    close(socketfd);
+}
+
+void APIController::trafficBetween(int socketfd, time_t start, time_t end)
+{
+    auto trafficMap = mDB.fetchTrafficBetween(start, end);
+
+    json payload = trafficToJson(trafficMap);
+    payload["result"] = "success";
+
+    std::string msg = payload.dump();
+
+    send(socketfd, msg.c_str(), msg.size(), MSG_NOSIGNAL);
+
+    close(socketfd);
+}
+
+json APIController::trafficToJson(const TrafficMap& traffic)
+{
+    json payload;
+
+    payload["length"] = traffic.size();
+    for (const auto& [name, line] : traffic)
+    {
+        payload["data"][name] = {
+            {"bytesRx", line.bytesRx},
+            {"bytesTx", line.bytesTx},
+            {"pktRxCount", line.pktRxCount},
+            {"pktTxCount", line.pktTxCount},
+        };
+    }
+
+    return payload;
 }
 
 } // namespace ntmd

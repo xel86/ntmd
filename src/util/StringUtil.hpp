@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace ntmd::util {
 
@@ -8,6 +9,8 @@ namespace ntmd::util {
  * Does not modify original string, returns a new trimmed string.
  */
 std::string trim(const std::string& s);
+
+std::vector<std::string> split(const std::string& s, const char& delimiter = ' ');
 
 /* Modifies string inplace to be all lowercase. Returns a reference to the modified string which
  * will be the same address as the string given as the parameter. */

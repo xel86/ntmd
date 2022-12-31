@@ -9,6 +9,7 @@
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
+#include <vector>
 
 namespace ntmd {
 
@@ -134,9 +135,10 @@ TrafficMap DBController::fetchTrafficBetween(time_t start, time_t end) const
     return fetchTrafficWithQuery(sql);
 }
 
-void DBController::fetchApplicationNames(TrafficMap& traffic) const
+std::vector<std::string> DBController::fetchApplicationNames() const
 {
     const char* sqlGetApps = "select name from sqlite_schema where type='table';";
+    std::vector<std::string> names;
 
     sqlite3_stmt* stmt;
     sqlite3_prepare_v3(mHandle, sqlGetApps, strlen(sqlGetApps), 0, &stmt, nullptr);
@@ -145,20 +147,22 @@ void DBController::fetchApplicationNames(TrafficMap& traffic) const
         const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
 
         if (name != nullptr)
-            traffic[name] = TrafficLine{};
+            names.push_back(name);
     }
 
     sqlite3_finalize(stmt);
+    return names;
 }
 
 TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
 {
+    auto tables = fetchApplicationNames();
     TrafficMap traffic;
 
-    fetchApplicationNames(traffic);
-
-    for (auto& [name, line] : traffic)
+    for (const std::string& name : tables)
     {
+        TrafficLine line{};
+
         char sqlReplaced[256];
         snprintf(sqlReplaced, 256, query, name.c_str());
 
@@ -171,6 +175,10 @@ TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
             line.pktRxCount += sqlite3_column_int64(stmt, 3);
             line.pktTxCount += sqlite3_column_int64(stmt, 4);
         }
+
+        /* If no traffic rows were returned from table query, don't include in traffic map. */
+        if (!line.empty())
+            traffic[name] = line;
 
         sqlite3_finalize(stmt);
     }

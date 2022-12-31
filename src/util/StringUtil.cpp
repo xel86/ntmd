@@ -23,6 +23,30 @@ std::string trim(const std::string& s)
     return std::string(start, end + 1);
 }
 
+std::vector<std::string> split(const std::string& s, const char& delimiter)
+{
+    std::vector<std::string> words;
+
+    std::string current;
+    for (const char& c : s)
+    {
+        if (c != delimiter)
+        {
+            current.push_back(c);
+        }
+        else
+        {
+            words.push_back(current);
+            current.clear();
+        }
+    }
+
+    if (!current.empty())
+        words.push_back(current);
+
+    return words;
+}
+
 std::string& strToLower(std::string& s)
 {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });

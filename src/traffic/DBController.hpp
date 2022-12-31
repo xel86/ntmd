@@ -4,6 +4,7 @@
 #include <sqlite3.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ntmd {
 
@@ -13,6 +14,8 @@ struct TrafficLine
     uint64_t bytesTx{0}; /* Bytes transmitted. */
     int pktRxCount{0};   /* Number of packets received. */
     int pktTxCount{0};   /* Number of packets transmitted. */
+
+    bool empty() { return bytesRx == 0 && bytesTx == 0 && pktRxCount == 0 && pktTxCount == 0; }
 };
 
 class DBController
@@ -38,7 +41,7 @@ class DBController
 
   private:
     /* Load application names from database tables into an empty traffic map. */
-    void fetchApplicationNames(TrafficMap& traffic) const;
+    std::vector<std::string> fetchApplicationNames() const;
 
     /* Generic common operation to grab a traffic from every
      * application table based on a query for each individual table.
