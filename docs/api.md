@@ -1,10 +1,10 @@
 # **ntmd API Documentation (WIP)**
 
-To interact with ntmd as its running on your computer, you should use the api documented here. 
+To interact with ntmd as it's running on your computer, you should use the api documented here. 
 
 The api commands not only have access to the local sqlite database, but also in-memory information that has yet to be deposited to disk. This will eventually also include process control flow management.
 
-Although the monitored traffic is stored on a local sqlite database, it is recommended to use the API to retrieve historical traffic data from the database using the commands listed here. If there is functionality that is missing that you believe would useful, suggest it's creation! 
+Although the monitored traffic is stored on a local sqlite database, it is recommended to use the API to retrieve historical traffic data from the database using the commands listed here. If there is functionality that is missing that you believe would be useful, suggest its creation! 
 
 ## Usage
 
@@ -12,13 +12,13 @@ The API is hosted via a socket server on the default port 13889, but this can be
 
 To send a request to the socket server, simply open a socket and send a string with the name of a command. If said command requires parameters, send them after the command name separated by a space.
 
-Returned JSON payload's from api requests contain a `data` with the contextual data returned by the specific command,  a `length` field which lets you know how many objects are in the `data` field, a `result` field which will let you know if the command was successful or failed, and an `errmsg` field which is only present when an error occured and contains contextual information as to why the error occured. 
+Returned JSON payload from api requests contain a `data` with the contextual data returned by the specific command,  a `length` field which lets you know how many objects are in the `data` field, a `result` field which will let you know if the command was successful or failed, and an `errmsg` field which is only present when an error occurred and contains contextual information as to why the error occurred. 
 
 ## Commands (WIP)
 
-**`live-text`** -> A continous stream of pre-formatted strings on a set interval that gives pretty information about in-memory monitored traffic.
+**`live-text`** -> A continuous stream of pre-formatted strings on a set interval that gives pretty information about in-memory monitored traffic.
 
-**`live`** -> A continous stream of JSON data on a set 
+**`live`** -> A continuous stream of JSON data on a set 
 interval that gives information about in-memory monitored traffic.
 
 Example payload:
