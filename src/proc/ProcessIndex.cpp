@@ -43,6 +43,12 @@ void ProcessIndex::refresh()
      * nearly zero-cost, but unfortunately in the situation of iterating over directories often
      * std::filesystem::directory_iterator is painfully slow compared to using DIR & dirent. */
 
+    /* Clear the process map before doing a full scan to prevent old processes from taking up
+     * memory, this is performance heavy. We will not clear the mLRUCache because its not too big of
+     * a deal for those values to be expired and replaced naturally overtime than to prevent the big
+     * performance benefits and clear now. */
+    mProcessMap.clear();
+
     DIR* procDir = opendir("/proc");
     if (procDir == nullptr)
     {

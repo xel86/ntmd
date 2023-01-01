@@ -12,7 +12,7 @@ The API is hosted via a socket server on the default port 13889, but this can be
 
 To send a request to the socket server, simply open a socket and send a string with the name of a command. If said command requires parameters, send them after the command name separated by a space.
 
-Returned JSON payload from api requests contain a `data` with the contextual data returned by the specific command,  a `length` field which lets you know how many objects are in the `data` field, a `result` field which will let you know if the command was successful or failed, and an `errmsg` field which is only present when an error occurred and contains contextual information as to why the error occurred. 
+Returned JSON payload from api requests contain a `data` field with the contextual data returned by the specific command,  a `length` field which lets you know how many objects are in the `data` field, a `result` field which will let you know if the command was successful or failed, and an `errmsg` field which is only present when an error occurred and contains contextual information as to why the error occurred. 
 
 ## Commands (WIP)
 

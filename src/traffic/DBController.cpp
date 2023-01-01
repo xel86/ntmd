@@ -58,7 +58,14 @@ DBController::~DBController() { sqlite3_close(mHandle); }
 void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
 {
     char* err;
-    sqlite3_exec(mHandle, "BEGIN TRANSACTION", nullptr, nullptr, &err);
+    int execErr;
+    execErr = sqlite3_exec(mHandle, "BEGIN TRANSACTION", nullptr, nullptr, &err);
+    if (execErr != SQLITE_OK)
+    {
+        std::cerr << "Error beginning application traffic transaction.\n";
+        sqlite3_free(err);
+        return;
+    }
 
     const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS \"%s\" ("
                                  "timestamp INT PRIMARY KEY NOT NULL, "
@@ -69,7 +76,8 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
 
     const char* sqlInsertValues = "INSERT INTO \"%s\" VALUES (?, ?, ?, ?, ?);";
 
-    sqlite3_stmt* stmt;
+    sqlite3_stmt* createTableStmt;
+    sqlite3_stmt* insertTrafficStmt;
     time_t timestamp = std::time(nullptr);
 
     // TODO: Can this be done faster/prettier?
@@ -85,37 +93,43 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
             continue;
         }
 
+        /* Create application table if it doesn't already exist. */
         char sqlReplaced[512];
         snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str());
 
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, nullptr);
-        int ret = sqlite3_step(stmt);
+        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &createTableStmt, nullptr);
+        int ret = sqlite3_step(createTableStmt);
         if (ret != SQLITE_DONE)
         {
             std::cerr << "Commit failed while trying to create table.\n";
         }
 
-        sqlite3_reset(stmt);
+        sqlite3_finalize(createTableStmt);
 
+        /* Deposit traffic line into application table */
         snprintf(sqlReplaced, 512, sqlInsertValues, name.c_str());
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &stmt, nullptr);
-        sqlite3_bind_int(stmt, 1, timestamp);
-        sqlite3_bind_int(stmt, 2, line.bytesRx);
-        sqlite3_bind_int(stmt, 3, line.bytesTx);
-        sqlite3_bind_int(stmt, 4, line.pktRxCount);
-        sqlite3_bind_int(stmt, 5, line.pktTxCount);
+        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &insertTrafficStmt, nullptr);
+        sqlite3_bind_int(insertTrafficStmt, 1, timestamp);
+        sqlite3_bind_int(insertTrafficStmt, 2, line.bytesRx);
+        sqlite3_bind_int(insertTrafficStmt, 3, line.bytesTx);
+        sqlite3_bind_int(insertTrafficStmt, 4, line.pktRxCount);
+        sqlite3_bind_int(insertTrafficStmt, 5, line.pktTxCount);
 
-        ret = sqlite3_step(stmt);
+        ret = sqlite3_step(insertTrafficStmt);
         if (ret != SQLITE_DONE)
         {
             std::cerr << "Commit failed while trying to insert application traffic.\n";
         }
 
-        sqlite3_reset(stmt);
+        sqlite3_finalize(insertTrafficStmt);
     }
 
     sqlite3_exec(mHandle, "COMMIT TRANSACTION", nullptr, nullptr, &err);
-    sqlite3_finalize(stmt);
+    if (execErr != SQLITE_OK)
+    {
+        std::cerr << "Error commiting application traffic transaction.\n";
+        sqlite3_free(err);
+    }
 }
 
 TrafficMap DBController::fetchTrafficSince(time_t timestamp) const
