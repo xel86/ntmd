@@ -67,6 +67,9 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         return;
     }
 
+    /* The best db design that I could think of for performance, space, and simplicity was to have a
+     * table per application; unfortunately since the sqlite3 api doesn't allow for binding table
+     * names, we must do it dynamically. */
     const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS \"%s\" ("
                                  "timestamp INT PRIMARY KEY NOT NULL, "
                                  "bytesRx INT DEFAULT 0, "
@@ -135,7 +138,10 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
 TrafficMap DBController::fetchTrafficSince(time_t timestamp) const
 {
     char sql[256];
-    snprintf(sql, 256, "select * from \"%%s\" where timestamp >= %ld;", timestamp);
+    snprintf(sql, 256,
+             "select SUM(bytesRx), SUM(bytesTx), SUM(pktRxCount), SUM(pktTxCount) from \"%%s\" "
+             "where timestamp >= %ld;",
+             timestamp);
 
     return fetchTrafficWithQuery(sql);
 }
@@ -143,8 +149,10 @@ TrafficMap DBController::fetchTrafficSince(time_t timestamp) const
 TrafficMap DBController::fetchTrafficBetween(time_t start, time_t end) const
 {
     char sql[256];
-    snprintf(sql, 256, "select * from \"%%s\" where timestamp >= %ld and timestamp <= %ld;", start,
-             end);
+    snprintf(sql, 256,
+             "select SUM(bytesRx), SUM(bytesTx), SUM(pktRxCount), SUM(pktTxCount) from \"%%s\" "
+             "where timestamp >= %ld and timestamp <= %ld;",
+             start, end);
 
     return fetchTrafficWithQuery(sql);
 }
@@ -182,12 +190,16 @@ TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
 
         sqlite3_stmt* stmt;
         sqlite3_prepare_v3(mHandle, sqlReplaced, 256, 0, &stmt, nullptr);
-        while (sqlite3_step(stmt) == SQLITE_ROW)
+        if (sqlite3_step(stmt) == SQLITE_ROW)
         {
-            line.bytesRx += sqlite3_column_int64(stmt, 1);
-            line.bytesTx += sqlite3_column_int64(stmt, 2);
-            line.pktRxCount += sqlite3_column_int64(stmt, 3);
-            line.pktTxCount += sqlite3_column_int64(stmt, 4);
+            line.bytesRx += sqlite3_column_int64(stmt, 0);
+            line.bytesTx += sqlite3_column_int64(stmt, 1);
+            line.pktRxCount += sqlite3_column_int64(stmt, 2);
+            line.pktTxCount += sqlite3_column_int64(stmt, 3);
+        }
+        else
+        {
+            std::cerr << "Error fetching traffic with query: " << query << "\n";
         }
 
         /* If no traffic rows were returned from table query, don't include in traffic map. */
