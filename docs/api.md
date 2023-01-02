@@ -20,6 +20,14 @@ Returned JSON payload from api requests contain a `data` field with the contextu
 
 **`live-text`** -> A continuous stream of pre-formatted strings on a set interval that gives pretty information about in-memory monitored traffic.
 
+Example payload:
+```
+Application Traffic:
+  chatterino { rx: 6.3 KB/s, tx: 867 B/s, rxc: 126, txc: 129 }
+  Discord { rx: 223 B/s, tx: 38 B/s, rxc: 4, txc: 5 }
+  chromium { rx: 449 B/s, tx: 289 B/s, rxc: 30, txc: 20 }
+```
+
 **`live`** -> A continuous stream of JSON data on a set 
 interval that gives information about in-memory monitored traffic.
 
