@@ -12,12 +12,14 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <set>
 #include <thread>
 #include <unistd.h>
 
 namespace ntmd {
 
 using inode = uint64_t;
+using OptionalProcessRef = std::optional<std::reference_wrapper<const Process>>;
 
 ProcessIndex::ProcessIndex()
 {
@@ -47,6 +49,7 @@ void ProcessIndex::refresh()
      * memory, this is performance heavy. We will not clear the mLRUCache because its not too big of
      * a deal for those values to be expired and replaced naturally overtime than to prevent the big
      * performance benefits and clear now. */
+    // TODO: We aren't clearing this anymore after a refactor, think of a solution.
     mProcessMap.clear();
 
     DIR* procDir = opendir("/proc");
@@ -65,6 +68,7 @@ void ProcessIndex::refresh()
             continue;
 
         const std::string& pidStr = procEntry->d_name;
+        const std::string fdPath = "/proc/" + pidStr + "/fd";
         const pid_t pid = std::stoi(pidStr);
 
         /* Do not search PIDs that are in cache since they will have been searched already. */
@@ -73,79 +77,90 @@ void ProcessIndex::refresh()
             continue;
         }
 
-        std::string comm;
-        std::ifstream commFile("/proc/" + pidStr + "/comm");
-        if (!commFile.is_open())
-        {
-            std::cerr << "Error opening comm file for PID " << pid
-                      << ". Process could have been deleted while processing it.\n";
-            break;
-        }
-        else
-        {
-            std::getline(commFile, comm);
-        }
-
-        const std::string fdPath = "/proc/" + pidStr + "/fd";
-        DIR* fdDir = opendir(fdPath.c_str());
-        if (fdDir == nullptr)
-        {
-            std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
-                         "after it was "
-                         "found. ("
-                      << "/proc/ " << pidStr << ")\n";
-            continue;
-        }
-
-        /* Find any socket file descriptors the process may own. */
-        dirent* fdEntry;
-        while ((fdEntry = readdir(fdDir)))
-        {
-            /* Socket file desciptors are always symbolic links */
-            if (fdEntry->d_type != DT_LNK)
-                continue;
-
-            const std::string linkPath = fdPath + "/" + fdEntry->d_name;
-            char linkRaw[80];
-
-            /* Skip if file desciptor was deleted before we were able to read it. */
-            if (readlink(linkPath.c_str(), linkRaw, 79) < 0)
-            {
-                continue;
-            }
-            const std::string& link = linkRaw;
-
-            inode inode;
-            if (link.rfind("socket:", 0) == 0)
-            {
-                /* socket:[12345]  -> 12345 */
-                inode = std::stoi(link.substr(8, link.size()));
-
-                Process process;
-
-                process.pid = pid;
-                process.comm = comm;
-
-                mProcessMap[inode] = process;
-            }
-        }
-
-        closedir(fdDir);
+        processPidDir(fdPath, pidStr, pid);
     }
 
     closedir(procDir);
 }
 
-bool ProcessIndex::refreshCached(inode target)
+OptionalProcessRef ProcessIndex::search(inode target)
 {
-    bool found = false;
+    OptionalProcessRef foundProcess;
+
+    /* First search the pid's in the cache, and update/remove values inside the cache.
+     * If the cache finds the new socket and its associated process, return it. */
+    foundProcess = searchCache(target);
+    if (foundProcess.has_value())
+    {
+        const Process& ref = foundProcess->get();
+        std::cerr << "Successful cache hit for process: " << ref.comm << " (pid: " << ref.pid
+                  << ")\n";
+        return foundProcess;
+    }
+
+    /* If the new socket doesn't belong to a cached pid, do a search of the entire pid directory but
+     * sorted with the most recently spawned processes searched first (larger pid).
+     * To do this we first traverse the entire proc directory to sort the pid's, then scan the fd
+     * folder for each pid folder. */
+    DIR* procDir = opendir("/proc");
+    if (procDir == nullptr)
+    {
+        std::cerr << "Failed to open the /proc directory, error: " << strerror(errno)
+                  << ". Cannot proceed, exiting.";
+        std::exit(1);
+    }
+
+    std::set<pid_t, std::greater<pid_t>> sortedProcDir;
+
+    dirent* procEntry;
+    while ((procEntry = readdir(procDir)))
+    {
+        /* Check if the entry in proc represents a process directory. */
+        if (procEntry->d_type != DT_DIR || !util::isNumber(procEntry->d_name))
+            continue;
+
+        const std::string& pidStr = procEntry->d_name;
+        const pid_t pid = std::stoi(pidStr);
+
+        /* Do not search PIDs that are in cache since they will have been searched already. */
+        if (mLRUCache.contains(pid))
+        {
+            continue;
+        }
+
+        sortedProcDir.insert(pid);
+    }
+    closedir(procDir);
+
+    /* Search the process folders in proc with the most recently spawned processes being searched
+     * first, if we find the socket inode target do not search anymore and return the process it
+     * belongs to. */
+    for (const pid_t& pid : sortedProcDir)
+    {
+        const std::string pidStr = std::to_string(pid);
+        const std::string fdPath = "/proc/" + pidStr + "/fd";
+
+        foundProcess = processPidDir(fdPath, pidStr, pid, target);
+
+        if (foundProcess.has_value())
+        {
+            const Process& ref = foundProcess->get();
+            std::cerr << "Succesful sorted search and found new process: " << ref.comm
+                      << " (pid: " << ref.pid << ") with inode: " << target << "\n";
+            return foundProcess;
+        }
+    }
+
+    return foundProcess;
+}
+
+OptionalProcessRef ProcessIndex::searchCache(inode target)
+{
+    OptionalProcessRef foundProcess;
     std::vector<pid_t> expired;
 
     for (const pid_t& pid : mLRUCache.iterator())
     {
-        if (found)
-            break;
-
         const std::string pidStr = std::to_string(pid);
         const std::string fdPath = "/proc/" + pidStr + "/fd";
 
@@ -156,70 +171,10 @@ bool ProcessIndex::refreshCached(inode target)
             continue;
         }
 
-        std::string comm;
-        std::ifstream commFile("/proc/" + pidStr + "/comm");
-        if (!commFile.is_open())
-        {
-            std::cerr << "Error opening comm file for PID " << pid
-                      << ". Process could have been deleted while processing it.\n";
-            break;
-        }
-        else
-        {
-            std::getline(commFile, comm);
-        }
+        foundProcess = processPidDir(fdPath, pidStr, pid, target);
 
-        DIR* fdDir = opendir(fdPath.c_str());
-        if (fdDir == nullptr)
-        {
-            std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
-                         "after it was "
-                         "found. ("
-                      << "/proc/ " << pidStr << ")\n";
-            continue;
-        }
-
-        /* Find any socket file descriptors the process may own. */
-        dirent* fdEntry;
-        while ((fdEntry = readdir(fdDir)))
-        {
-            /* Socket file desciptors are always symbolic links */
-            if (fdEntry->d_type != DT_LNK)
-                continue;
-
-            const std::string linkPath = fdPath + "/" + fdEntry->d_name;
-            char linkRaw[80];
-
-            /* Skip if file desciptor was deleted before we were able to read it. */
-            if (readlink(linkPath.c_str(), linkRaw, 79) < 0)
-            {
-                continue;
-            }
-            const std::string& link = linkRaw;
-
-            inode inode;
-            if (link.rfind("socket:", 0) == 0)
-            {
-                /* socket:[12345]  -> 12345 */
-                inode = std::stoi(link.substr(8, link.size()));
-
-                Process process;
-
-                process.pid = pid;
-                process.comm = comm;
-
-                if (inode == target)
-                {
-                    std::cerr << "Successful cache hit for process " << process.comm << " inode "
-                              << target << "\n";
-                    found = true;
-                }
-
-                mProcessMap[inode] = process;
-            }
-        }
-
-        closedir(fdDir);
+        if (foundProcess.has_value())
+            return foundProcess;
     }
 
     /* Erase expired pid's in cache outside of previous loop
@@ -229,10 +184,82 @@ bool ProcessIndex::refreshCached(inode target)
         mLRUCache.erase(pid);
     }
 
+    return foundProcess;
+}
+
+OptionalProcessRef ProcessIndex::processPidDir(const std::string& fdPath, const std::string& pidStr,
+                                               const pid_t& pid, inode target)
+{
+    OptionalProcessRef found;
+
+    std::string comm;
+    std::ifstream commFile("/proc/" + pidStr + "/comm");
+    if (!commFile.is_open())
+    {
+        std::cerr << "Error opening comm file for PID " << pid
+                  << ". Process could have been deleted while processing it.\n";
+        return std::nullopt;
+    }
+    else
+    {
+        std::getline(commFile, comm);
+    }
+
+    DIR* fdDir = opendir(fdPath.c_str());
+    if (fdDir == nullptr)
+    {
+        std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
+                     "after it was "
+                     "found. ("
+                  << "/proc/ " << pidStr << ")\n";
+
+        return std::nullopt;
+    }
+
+    /* Find any socket file descriptors the process may own. */
+    dirent* fdEntry;
+    while ((fdEntry = readdir(fdDir)))
+    {
+        /* Socket file desciptors are always symbolic links */
+        if (fdEntry->d_type != DT_LNK)
+            continue;
+
+        const std::string linkPath = fdPath + "/" + fdEntry->d_name;
+        char linkRaw[80];
+
+        /* Skip if file desciptor was deleted before we were able to read it. */
+        if (readlink(linkPath.c_str(), linkRaw, 79) < 0)
+        {
+            continue;
+        }
+        const std::string& link = linkRaw;
+
+        inode inode;
+        if (link.rfind("socket:", 0) == 0)
+        {
+            /* socket:[12345]  -> 12345 */
+            inode = std::stoi(link.substr(8, link.size()));
+
+            Process process;
+
+            process.pid = pid;
+            process.comm = comm;
+
+            const auto& it = mProcessMap.insert_or_assign(inode, process).first;
+            if (inode != 0 && inode == target)
+            {
+                const Process& ref = it->second;
+                found = ref;
+            }
+        }
+    }
+
+    closedir(fdDir);
+
     return found;
 }
 
-std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode inode)
+OptionalProcessRef ProcessIndex::get(inode inode)
 {
     /* If we have recently failed to find the process for the given inode already,
      * don't search for it again. */
@@ -249,20 +276,14 @@ std::optional<std::reference_wrapper<const Process>> ProcessIndex::get(inode ino
     }
     else
     {
-        /* Attempt to find new socket in the most recently used cache, if we didn't get a hit then
-         * do a full refresh */
-        bool hit = refreshCached(inode);
+        /* Attempt to search for the socket inode and the corresponding process it belongs too.
+         * This first searches the mLRUCache, then searches each individual pid proc folder starting
+         * with the newest processes first. */
+        OptionalProcessRef found = search(inode);
 
-        if (!hit)
-            refresh();
-
-        const auto& found = mProcessMap.find(inode);
-        if (found != mProcessMap.end())
+        if (found.has_value())
         {
-            const Process& process = found->second;
-            if (!hit)
-                std::cerr << "Succesfully refreshed and found new process: " << process.comm
-                          << " with inode: " << inode << "\n";
+            const Process& process = found->get();
 
             mLRUCache.update(process.pid);
 

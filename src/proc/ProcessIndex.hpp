@@ -24,6 +24,7 @@ struct Process
 class ProcessIndex
 {
     using inode = uint64_t;
+    using OptionalProcessRef = std::optional<std::reference_wrapper<const Process>>;
 
   public:
     ProcessIndex();
@@ -33,23 +34,36 @@ class ProcessIndex
      * This is CPU intensive. */
     void refresh();
 
-    /* Refresh only the PID folders in the cache, returns true if the given inode was found. */
-    bool refreshCached(inode target);
-
     /* Attempt to find and return a Process from the mProcessMap based on the inode key. */
-    std::optional<std::reference_wrapper<const Process>> get(inode inode);
+    OptionalProcessRef get(inode inode);
 
   private:
-    /* A process can own multiple socket file descriptors with different inodes, so for quick access
-     * of the same process for multiple different socket inodes different inode keys can point to
-     * the same process in memory.*/
+    /* Search the /proc directory for a specific socket inode and once found do not search any
+     * further. First search through the cached pids, then the entire /proc folder but sorted with
+     * the newest processes searched first. */
+    OptionalProcessRef search(inode target);
+
+    /* Refresh only the PID folders in the cache, returns a reference to the process if the given
+     * inode was found. */
+    OptionalProcessRef searchCache(inode target);
+
+    /* Search a pid dir's file descriptor folder (/proc/123/fd) for a specific socket inode.
+     * This will also update mProcessMap.
+     * If no socket inode target provided, simply ignore the returned OptionalProcessRef.
+     */
+    OptionalProcessRef processPidDir(const std::string& fdPath, const std::string& pidStr,
+                                     const pid_t& pid, inode target = 0);
+
+    /* A process can own multiple socket file descriptors with different inodes, so for quick
+     * access of the same process for multiple different socket inodes different inode keys can
+     * point to the same process in memory.*/
     std::unordered_map<inode, Process> mProcessMap;
 
     /* Cache of PIDs who's folder was most recently searched for that contained a new socket file
      * descriptor. This alleviates a lot of CPU cycles for programs that create sockets often,
      * avoiding full /proc refreshs to find new sockets from these cached programs.
      * Discards the least recently used pid once reached max size. */
-    LRUArray<pid_t> mLRUCache = LRUArray<pid_t>(3);
+    LRUArray<pid_t> mLRUCache = LRUArray<pid_t>(5);
 
     /* For packets and their socket inodes that we cannot find a corresponding process for, add them
      * to a not found list so that we don't continously hammer the CPU trying to find a process that
