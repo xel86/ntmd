@@ -192,10 +192,10 @@ TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
         sqlite3_prepare_v3(mHandle, sqlReplaced, 256, 0, &stmt, nullptr);
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
-            line.bytesRx += sqlite3_column_int64(stmt, 0);
-            line.bytesTx += sqlite3_column_int64(stmt, 1);
-            line.pktRxCount += sqlite3_column_int64(stmt, 2);
-            line.pktTxCount += sqlite3_column_int64(stmt, 3);
+            line.bytesRx = sqlite3_column_int64(stmt, 0);
+            line.bytesTx = sqlite3_column_int64(stmt, 1);
+            line.pktRxCount = sqlite3_column_int64(stmt, 2);
+            line.pktTxCount = sqlite3_column_int64(stmt, 3);
         }
         else
         {
