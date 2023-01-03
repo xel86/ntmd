@@ -42,6 +42,15 @@ class Config
      * If we are not-root, default is ~/.ntmd.db */
     std::filesystem::path dbPath{};
 
+    /* ProcessIndex mLRUCache size. The larger the size, the longer it will take for the
+     * ProcessIndex to find processes not in cache. The smaller the size, the easier it will be to
+     * find new processes but slower to find existing processes that create sockets regularly (this
+     * is more typical). Default of 5 is a good middle ground for both. */
+    int processCacheSize{5};
+
+    /* Port for the API socket server to be hosted on. */
+    uint16_t serverPort{13889};
+
   private:
     std::filesystem::path mFilePath{};
 };

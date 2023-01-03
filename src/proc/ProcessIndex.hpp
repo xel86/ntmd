@@ -27,7 +27,7 @@ class ProcessIndex
     using OptionalProcessRef = std::optional<std::reference_wrapper<const Process>>;
 
   public:
-    ProcessIndex();
+    ProcessIndex(int cacheSize);
     ~ProcessIndex();
 
     /* Scan and update our process map with socket inodes for every PID folder in /proc.
@@ -63,7 +63,7 @@ class ProcessIndex
      * descriptor. This alleviates a lot of CPU cycles for programs that create sockets often,
      * avoiding full /proc refreshs to find new sockets from these cached programs.
      * Discards the least recently used pid once reached max size. */
-    LRUArray<pid_t> mLRUCache = LRUArray<pid_t>(5);
+    LRUArray<pid_t> mLRUCache;
 
     /* For packets and their socket inodes that we cannot find a corresponding process for, add them
      * to a not found list so that we don't continously hammer the CPU trying to find a process that

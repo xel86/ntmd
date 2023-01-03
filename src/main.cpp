@@ -37,7 +37,7 @@ int main(int argc, char** argv)
     /* Socket API controller that manages the socket server to respond to incoming socket API
      * requests. Has a reference to both the traffic storage for peeking into a live view of
      * in-memory traffic, and the db controller for easy access to historical traffic data. */
-    auto api = APIController(trafficStorage, db);
+    auto api = APIController(trafficStorage, db, cfg.serverPort);
 
     Sniffer sniffer(cfg, trafficStorage);
 }

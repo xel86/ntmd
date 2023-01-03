@@ -16,6 +16,7 @@ Example: ntmd --daemon
 Arguments:
   -x, --debug       Print additional debug information to log.
   -i, --interval    Interval in seconds to update database with buffered traffic.
+  -p, --port        Port for the socket server to be hosted on.
   -c, --config      Absolute path to search for the config file location rather than defaults.
   --interface       Network interface for ntmd to monitor traffic on (example: eth0).
   --db-path         Path to database file to be used for reading and writing traffic.
@@ -61,12 +62,12 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 {
                     this->interval = std::stoi(std::string(*(it + 1)));
                 }
-                catch (const std::invalid_argument& ia)
+                catch (const std::exception& ex)
                 {
                     fprintf(stderr,
-                            "The interval argument (-i, --interval) requires an "
-                            "integer in seconds. Invalid argument: %s\n",
-                            ia.what());
+                            "The interval argument (-i, --interval) requires a "
+                            "32 bit integer in seconds. Invalid argument: %s\n",
+                            ex.what());
                     exit(1);
                 }
             }
@@ -74,6 +75,34 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
             {
                 fprintf(stderr, "The interval argument (-i, --interval) requires an "
                                 "integer in seconds.\n");
+                exit(1);
+            }
+
+            it++;
+            continue;
+        }
+
+        if (arg == "-p" || arg == "--port")
+        {
+            if (it + 1 != end)
+            {
+                try
+                {
+                    this->serverPort = std::stoi(std::string(*(it + 1)));
+                }
+                catch (const std::exception& ex)
+                {
+                    fprintf(stderr,
+                            "The port argument (-p, --port) requires a "
+                            "16 bit unsigned integer in seconds. Invalid argument: %s\n",
+                            ex.what());
+                    exit(1);
+                }
+            }
+            else
+            {
+                fprintf(stderr, "The port argument (-p, --port) requires a "
+                                "16 bit unsigned integer in seconds.\n");
                 exit(1);
             }
 

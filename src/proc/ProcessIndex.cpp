@@ -21,7 +21,7 @@ namespace ntmd {
 using inode = uint64_t;
 using OptionalProcessRef = std::optional<std::reference_wrapper<const Process>>;
 
-ProcessIndex::ProcessIndex()
+ProcessIndex::ProcessIndex(int cacheSize) : mLRUCache(cacheSize)
 {
     refresh();
 

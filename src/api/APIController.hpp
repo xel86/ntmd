@@ -16,7 +16,7 @@ class APIController
     using TrafficMap = std::unordered_map<std::string, TrafficLine>;
 
   public:
-    APIController(TrafficStorage& trafficStorage, const DBController& db);
+    APIController(TrafficStorage& trafficStorage, const DBController& db, uint16_t port);
     ~APIController() = default;
 
   private:
@@ -37,6 +37,7 @@ class APIController
 
     TrafficStorage& mTrafficStorage;
     const DBController& mDB;
+    uint16_t mPort{13889};
 };
 
 } // namespace ntmd

@@ -71,7 +71,7 @@ Config::Config(std::filesystem::path overridedPath)
 
         std::cerr << "No config file present in ~/.ntmdconf, ~/.config/ntmd/ntmd.conf, or "
                      "/etc/ntmd.conf.\n"
-                     "Writing default config to "
+                     "Using default values and writing default config to "
                   << mFilePath << "\n";
 
         this->writeConfig();
@@ -116,6 +116,12 @@ Config::Config(std::filesystem::path overridedPath)
             std::cerr
                 << "Config item \"interval\" is attempting to be set with a non-integer value (\""
                 << items["interval"] << "\"). Defaulting to " << this->interval << "\n";
+        }
+        catch (std::out_of_range& oor)
+        {
+            std::cerr << "Config item \"interval\" is attempting to be set with an integer value "
+                         "too large (\""
+                      << items["interval"] << "\"). Defaulting to " << this->interval << "\n";
         }
     }
 
@@ -165,6 +171,47 @@ Config::Config(std::filesystem::path overridedPath)
         }
     }
 
+    if (items.count("port"))
+    {
+        try
+        {
+            this->serverPort = std::stoi(items["port"]);
+        }
+        catch (std::invalid_argument& ia)
+        {
+            std::cerr << "Config item \"port\" is attempting to be set with a non-integer value (\""
+                      << items["port"] << "\"). Defaulting to " << this->serverPort << "\n";
+        }
+        catch (std::out_of_range& oor)
+        {
+            std::cerr << "Config item \"port\" is attempting to be set with an integer value too "
+                         "large (\""
+                      << items["port"] << "\"). Defaulting to " << this->serverPort << "\n";
+        }
+    }
+
+    if (items.count("processCacheSize"))
+    {
+        try
+        {
+            this->processCacheSize = std::stoi(items["processCacheSize"]);
+        }
+        catch (std::invalid_argument& ia)
+        {
+            std::cerr << "Config item \"processCacheSize\" is attempting to be set with a "
+                         "non-integer value (\""
+                      << items["processCacheSize"] << "\"). Defaulting to "
+                      << this->processCacheSize << "\n";
+        }
+        catch (std::out_of_range& oor)
+        {
+            std::cerr << "Config item \"processCacheSize\" is attempting to be set with an "
+                         "integer value too large (\""
+                      << items["processCacheSize"] << "\"). Defaulting to "
+                      << this->processCacheSize << "\n";
+        }
+    }
+
     /* This will ensure the config is up to date after adding new config items.
      * Keeps current config values and adds new fields with their defaults. */
     this->writeConfig();
@@ -175,6 +222,7 @@ void Config::mergeArgs(ArgumentParser& args)
     this->interval = args.interval.value_or(this->interval);
     this->interface = args.interface.value_or(this->interface);
     this->dbPath = args.dbPath.value_or(this->dbPath);
+    this->serverPort = args.serverPort.value_or(this->serverPort);
 }
 
 void Config::writeConfig()
@@ -193,7 +241,15 @@ void Config::writeConfig()
     cfg << "#Interval in seconds at which buffered network traffic in memory will be deposited to "
            "database.\n";
     cfg << "#Must be an integer value.\n"
-        << "interval = " << this->interval << "\n";
+        << "interval = " << this->interval << "\n\n";
+    cfg << "#Size for the process index LRU cache, leave default if unsure.\n";
+    cfg << "#If you expect for many longrunning programs to use sockets frequently, increase the "
+           "cache size to include those programs.\n";
+    cfg << "#If you expect for many new programs to spawn, create sockets, then close (per "
+           "second), you may "
+           "want a lower cache size or none at all (0).\n";
+    cfg << "#In most cases the default will be good for both situations.\n";
+    cfg << "processCacheSize = " << this->processCacheSize << "\n";
 
     cfg << "\n";
 
@@ -219,6 +275,12 @@ void Config::writeConfig()
            "network traffic.\n";
     cfg << "#If left empty the default for root is /var/lib/ntmd.db and non-root is ~/.ntmd.db.\n";
     cfg << "dbPath = " << this->dbPath.string() << "\n";
+
+    cfg << "\n";
+
+    cfg << "[api]\n\n";
+    cfg << "#Port for socket server to be hosted on (16 bit unsigned).\n";
+    cfg << "port = " << static_cast<int>(this->serverPort) << "\n";
 
     configFile << cfg.str();
 }

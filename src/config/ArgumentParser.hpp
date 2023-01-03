@@ -22,6 +22,7 @@ class ArgumentParser
     std::optional<int> interval;
     std::optional<std::string> interface;
     std::optional<std::filesystem::path> dbPath;
+    std::optional<uint16_t> serverPort;
 };
 
 } // namespace ntmd

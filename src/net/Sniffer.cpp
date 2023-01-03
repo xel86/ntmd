@@ -12,7 +12,7 @@
 namespace ntmd {
 
 Sniffer::Sniffer(const Config& cfg, TrafficStorage& trafficStorage) :
-    mTrafficStorage(trafficStorage)
+    mTrafficStorage(trafficStorage), mProcessResolver(cfg.processCacheSize)
 {
     const std::string& device = cfg.interface;
     const int promiscuous = cfg.promiscuous ? 1 : 0;

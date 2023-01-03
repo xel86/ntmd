@@ -22,6 +22,13 @@ class LRUArray
      * Least recently used element (back of array) is discarded. */
     void update(T item)
     {
+        /* Allow for a cache size of 0 to essentially just be a disabled container
+         * without changing exterior code. */
+        if (mSize == 0)
+        {
+            return;
+        }
+
         if (mDeque.empty())
         {
             mDeque.push_front(item);

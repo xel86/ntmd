@@ -100,7 +100,7 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         char sqlReplaced[512];
         snprintf(sqlReplaced, 512, sqlCreateTable, name.c_str());
 
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &createTableStmt, nullptr);
+        sqlite3_prepare_v2(mHandle, sqlReplaced, -1, &createTableStmt, nullptr);
         int ret = sqlite3_step(createTableStmt);
         if (ret != SQLITE_DONE)
         {
@@ -111,7 +111,7 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
 
         /* Deposit traffic line into application table */
         snprintf(sqlReplaced, 512, sqlInsertValues, name.c_str());
-        sqlite3_prepare_v3(mHandle, sqlReplaced, 512, 0, &insertTrafficStmt, nullptr);
+        sqlite3_prepare_v2(mHandle, sqlReplaced, -1, &insertTrafficStmt, nullptr);
         sqlite3_bind_int(insertTrafficStmt, 1, timestamp);
         sqlite3_bind_int(insertTrafficStmt, 2, line.bytesRx);
         sqlite3_bind_int(insertTrafficStmt, 3, line.bytesTx);

@@ -23,16 +23,16 @@ using json = nlohmann::json;
 
 namespace ntmd {
 
-APIController::APIController(TrafficStorage& trafficStorage, const DBController& db) :
-    mTrafficStorage(trafficStorage), mDB(db)
+APIController::APIController(TrafficStorage& trafficStorage, const DBController& db,
+                             uint16_t port) :
+    mTrafficStorage(trafficStorage),
+    mDB(db), mPort(port)
 {
     this->startSocketServer();
 }
 
 void APIController::startSocketServer()
 {
-    const int mPort = 13889;
-
     int serverFd;
     sockaddr_in address;
     int opt = 1;

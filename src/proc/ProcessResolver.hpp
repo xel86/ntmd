@@ -12,7 +12,7 @@ namespace ntmd {
 class ProcessResolver
 {
   public:
-    ProcessResolver() = default;
+    ProcessResolver(int processIndexCacheSize) : mProcessIndex(processIndexCacheSize) {}
     ~ProcessResolver() = default;
 
     /* Uses both the socket index and process index to
