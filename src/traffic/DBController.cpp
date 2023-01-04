@@ -67,9 +67,9 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         return;
     }
 
-    /* The best db design that I could think of for performance, space, and simplicity was to have a
-     * table per application; unfortunately since the sqlite3 api doesn't allow for binding table
-     * names, we must do it dynamically. */
+    /* The best db design that I could think of for performance, space, and simplicity was to
+     * have a table per application; unfortunately since the sqlite3 api doesn't allow for
+     * binding table names, we must do it dynamically. */
     const char* sqlCreateTable = "CREATE TABLE IF NOT EXISTS \"%s\" ("
                                  "timestamp INT PRIMARY KEY NOT NULL, "
                                  "bytesRx INT DEFAULT 0, "
@@ -133,6 +133,21 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         std::cerr << "Error commiting application traffic transaction.\n";
         sqlite3_free(err);
     }
+
+    // TODO: further research into this?
+    /* Occasionally sqlite with allocate more memory that persists after these insert statements.
+     * When a new table is made or accessed for the first time during runtime the sqlite object will
+     * allocate metadata for it to increase performance. Although this isn't that big of an issue,
+     * every once and a while it will allocate 4K-9K bytes seemingly randomly despite doing nothing
+     * unique from other calls to this function. At first I thought this was new cache pages but
+     * upon testing none were being created/used. Overtime this will build up memory usage.
+     * Furthermore, when calling functions like fetchTrafficWithQuery the memory used by sqlite will
+     * increase by almost 700K bytes and never get freed until I suppose it hits a hard limit
+     * despite there being no actual memory leak reported by valgrind. Manually releasing all memory
+     * like this is bound to decrease insertion performance but I think it is better than the
+     * alternative situation of ever increasing memory. Ideally we could find the proper settings
+     * for sqlite to avoid allocating the extra memory in the first place. */
+    sqlite3_db_release_memory(mHandle);
 }
 
 TrafficMap DBController::fetchTrafficSince(time_t timestamp) const
