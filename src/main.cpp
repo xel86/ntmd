@@ -15,8 +15,7 @@ int main(int argc, char** argv)
 {
     if (geteuid() != 0)
     {
-        std::cerr
-            << "ntmd must be run as the root to sniff packets. Considering running using sudo.\n";
+        std::cerr << "ntmd must be run as root to sniff packets. Consider using sudo.\n";
         std::exit(1);
     }
     ArgumentParser args(argc, argv);
