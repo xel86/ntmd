@@ -41,7 +41,7 @@ class TrafficStorage
   private:
     /* Display all applications and their accumulated traffic to stderr.
      * Primarily for debugging. */
-    void displayLoop();
+    void depositLoop();
 
     /* Map that stores the total traffic monitored for each application.
      * The string key is the name of the application gathered from

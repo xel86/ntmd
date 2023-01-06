@@ -1,0 +1,15 @@
+[Unit]
+Description=Network Traffic Monitor Daemon (ntmd) service
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ntmd
+ExecReload=/bin/kill -HUP $MAINPID
+User=root
+LogLevelMax=5
+
+ProtectSystem=yes
+
+[Install]
+WantedBy=multi-user.target

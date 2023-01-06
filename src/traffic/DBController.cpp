@@ -1,4 +1,5 @@
 #include "DBController.hpp"
+#include "Daemon.hpp"
 #include "util/FilesystemUtil.hpp"
 #include "util/StringUtil.hpp"
 
@@ -19,38 +20,19 @@ DBController::DBController(std::filesystem::path dbPath)
 {
     if (dbPath.empty())
     {
-        /* If user is running as root use default db path /var/lib/ntmd.db */
-        /* If user is not running as root use default db path ~/.ntmd.db */
-        if (geteuid() == 0)
-        {
-            dbPath = "/var/lib/ntmd.db";
-        }
-        else
-        {
-            std::filesystem::path home = util::getHomeDirectory();
-            if (home.empty())
-            {
-                std::cerr
-                    << "Could not get location of home directory from $XDG_CONFIG_HOME or $HOME. "
-                       "Falling back to root directory config location /var/lib/ntmd.db.\n";
-                dbPath = "/var/lib/ntmd.db";
-            }
-            else
-            {
-                dbPath = home / ".ntmd.db";
-            }
-        }
+        dbPath = "/var/lib/ntmd.db";
     }
 
     int error = sqlite3_open(dbPath.c_str(), &mHandle);
     if (error)
     {
-        std::cerr << "Error opening or creating database at " << dbPath
+        std::cerr << ntmd::logerror << "Error opening or creating database at " << dbPath
                   << " with error: " << sqlite3_errmsg(mHandle) << "\n";
-        std::cerr << "Cannot proceed without database connection, exiting.\n";
-        exit(1);
+        std::cerr << ntmd::logerror << "Cannot proceed without database connection, exiting.\n";
+        std::exit(1);
     }
-    std::cerr << "Successfully opened or created database file at: " << dbPath << "\n";
+    std::cerr << ntmd::loginfo << "Successfully opened or created database file at: " << dbPath
+              << "\n";
 }
 
 DBController::~DBController() { sqlite3_close(mHandle); }
@@ -62,7 +44,7 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
     execErr = sqlite3_exec(mHandle, "BEGIN TRANSACTION", nullptr, nullptr, &err);
     if (execErr != SQLITE_OK)
     {
-        std::cerr << "Error beginning application traffic transaction.\n";
+        std::cerr << ntmd::logwarn << "Error beginning application traffic db transaction.\n";
         sqlite3_free(err);
         return;
     }
@@ -88,7 +70,8 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
     {
         if (util::containsSemicolon(name))
         {
-            std::cerr << "Tried inserting traffic into database for an application with a comm "
+            std::cerr << ntmd::logwarn
+                      << "Tried inserting traffic into database for an application with a comm "
                          "name that contains non-alphanumeric character(s): "
                       << name
                       << "\n"
@@ -104,7 +87,7 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         int ret = sqlite3_step(createTableStmt);
         if (ret != SQLITE_DONE)
         {
-            std::cerr << "Commit failed while trying to create table.\n";
+            std::cerr << ntmd::logwarn << "Commit failed while trying to create table.\n";
         }
 
         sqlite3_finalize(createTableStmt);
@@ -121,7 +104,8 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
         ret = sqlite3_step(insertTrafficStmt);
         if (ret != SQLITE_DONE)
         {
-            std::cerr << "Commit failed while trying to insert application traffic.\n";
+            std::cerr << ntmd::logwarn
+                      << "Commit failed while trying to insert application traffic.\n";
         }
 
         sqlite3_finalize(insertTrafficStmt);
@@ -130,7 +114,7 @@ void DBController::insertApplicationTraffic(const TrafficMap& traffic) const
     sqlite3_exec(mHandle, "COMMIT TRANSACTION", nullptr, nullptr, &err);
     if (execErr != SQLITE_OK)
     {
-        std::cerr << "Error commiting application traffic transaction.\n";
+        std::cerr << ntmd::logwarn << "Error commiting application traffic transaction.\n";
         sqlite3_free(err);
     }
 
@@ -214,7 +198,7 @@ TrafficMap DBController::fetchTrafficWithQuery(const char* query) const
         }
         else
         {
-            std::cerr << "Error fetching traffic with query: " << query << "\n";
+            std::cerr << ntmd::logwarn << "Error fetching traffic with query: " << query << "\n";
         }
 
         /* If no traffic rows were returned from table query, don't include in traffic map. */

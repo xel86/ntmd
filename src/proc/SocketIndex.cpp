@@ -1,4 +1,5 @@
 #include "SocketIndex.hpp"
+#include "Daemon.hpp"
 #include "net/PacketHash.hpp"
 
 #include <cstdlib>
@@ -21,7 +22,7 @@ void SocketIndex::refresh(const std::vector<std::string>& tables)
         std::ifstream fs(table);
         if (!fs.is_open())
         {
-            std::cerr << "Failed to open /proc socket table " << table
+            std::cerr << ntmd::logwarn << "Failed to open /proc socket table " << table
                       << ". Socket Index will not be properly updated resulting in packets not "
                          "being matched.\n";
             continue;
@@ -44,7 +45,8 @@ void SocketIndex::refresh(const std::vector<std::string>& tables)
 
             if (matches != 5)
             {
-                std::cerr << "Malformed line buffer from a /proc/net line in socket table " << table
+                std::cerr << ntmd::logwarn
+                          << "Malformed line buffer from a /proc/net line in socket table " << table
                           << ".\n";
                 continue;
             }
@@ -108,7 +110,8 @@ inode SocketIndex::get(const Packet& pkt)
         }
         else
         {
-            std::cerr << "Could not find an associated socket inode for the packet: " << pkt
+            std::cerr << ntmd::logdebug
+                      << "Could not find an associated socket inode for the packet: " << pkt
                       << "\n";
             return 0;
         }

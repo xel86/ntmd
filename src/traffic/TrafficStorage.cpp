@@ -1,5 +1,6 @@
 #include "TrafficStorage.hpp"
 
+#include "Daemon.hpp"
 #include "net/Packet.hpp"
 #include "proc/ProcessIndex.hpp"
 #include "util/HumanReadable.hpp"
@@ -15,7 +16,7 @@ using TrafficMap = std::unordered_map<std::string, TrafficLine>;
 
 TrafficStorage::TrafficStorage(int interval, const DBController& db) : mDB(db), mInterval(interval)
 {
-    this->displayLoop();
+    this->depositLoop();
 }
 
 void TrafficStorage::add(const Process& process, const Packet& pkt)
@@ -61,7 +62,7 @@ bool TrafficStorage::awaitSnapshot(std::mutex& mutex, TrafficMap& traffic, int& 
     return true;
 }
 
-void TrafficStorage::displayLoop()
+void TrafficStorage::depositLoop()
 {
     std::thread loop([this] {
         while (true)
@@ -69,17 +70,6 @@ void TrafficStorage::displayLoop()
             std::this_thread::sleep_for(std::chrono::seconds(mInterval));
 
             std::unique_lock<std::mutex> lock(mMutex);
-
-            std::cerr << "Application Traffic:\n";
-            for (const auto& [name, line] : mApplicationTraffic)
-            {
-                std::cerr << "  ";
-                std::cerr << name
-                          << " { rx: " << util::bytesToHumanOvertime(line.bytesRx, mInterval)
-                          << ", tx: " << util::bytesToHumanOvertime(line.bytesTx, mInterval)
-                          << ", rxc: " << line.pktRxCount << ", txc: " << line.pktTxCount << " }\n";
-            }
-            std::cerr << "\n";
 
             mDB.insertApplicationTraffic(mApplicationTraffic);
 
@@ -93,7 +83,8 @@ void TrafficStorage::displayLoop()
             {
                 if (apiMutex == nullptr || apiTrafficMap == nullptr || apiInterval == nullptr)
                 {
-                    std::cerr << "Live API hook variables were not set despite mAPIWaiting being "
+                    std::cerr << ntmd::logdebug
+                              << "Live API hook variables were not set despite mAPIWaiting being "
                                  "set true.\n";
                     mAPIWaiting = false;
                 }

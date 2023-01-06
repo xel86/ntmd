@@ -155,7 +155,7 @@ std::ostream& operator<<(std::ostream& os, const Packet& pkt)
         break;
     }
 
-    os << directionStr << " " << typeStr << " Packet: {\n";
+    os << directionStr << " " << typeStr << " Pkt: { ";
 
     in_addr sAddr, dAddr;
     sAddr.s_addr = pkt.sip;
@@ -165,21 +165,14 @@ std::ostream& operator<<(std::ostream& os, const Packet& pkt)
     inet_ntop(AF_INET, &(sAddr), sipStr, INET_ADDRSTRLEN);
     inet_ntop(AF_INET, &(dAddr), dipStr, INET_ADDRSTRLEN);
 
-    os << "  ";
     os << sipStr << ":" << static_cast<int>(pkt.sport);
     os << " -> ";
     os << dipStr << ":" << static_cast<int>(pkt.dport);
-    os << "\n";
 
-    os << "  ";
+    os << " ";
     os << "Len: " << pkt.len;
-    os << "\n";
 
-    os << "  ";
-    os << "Time: " << pkt.timestamp;
-    os << "\n";
-
-    os << "}";
+    os << " }";
 
     return os;
 }

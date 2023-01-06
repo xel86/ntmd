@@ -1,5 +1,6 @@
 #include "APIController.hpp"
 
+#include "Daemon.hpp"
 #include "traffic/DBController.hpp"
 #include "traffic/TrafficStorage.hpp"
 #include "util/HumanReadable.hpp"
@@ -40,14 +41,15 @@ void APIController::startSocketServer()
 
     if ((serverFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        std::cerr << "Failed to create the server's socket file descriptor for API. Proceeding "
+        std::cerr << ntmd::logerror
+                  << "Failed to create the server's socket file descriptor for API. Proceeding "
                      "without API functionality.\n";
         return;
     }
 
     if (setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
     {
-        std::cerr << "Failed to attach the server's socket to the port " << mPort
+        std::cerr << ntmd::logerror << "Failed to attach the server's socket to the port " << mPort
                   << " for API. Proceeding "
                      "without API functionality.\n";
         return;
@@ -58,7 +60,7 @@ void APIController::startSocketServer()
 
     if (bind(serverFd, (sockaddr*)&address, sizeof(address)) < 0)
     {
-        std::cerr << "Failed to bind the server's socket to the port " << mPort
+        std::cerr << ntmd::logerror << "Failed to bind the server's socket to the port " << mPort
                   << " for API. Proceeding "
                      "without API functionality.\n";
         return;
@@ -73,6 +75,7 @@ void APIController::startSocketServer()
             if (listen(serverFd, 5) < 0)
             {
                 std::cerr
+                    << ntmd::logwarn
                     << "Error while attempting to listen onto server socket file descriptor. \n";
                 /* TODO: don't break here, handle errors */
                 continue;
@@ -80,7 +83,7 @@ void APIController::startSocketServer()
 
             if ((newSocket = accept(serverFd, (sockaddr*)&address, (socklen_t*)&addrlen)) < 0)
             {
-                std::cerr << "Error accepting new incoming socket request.\n";
+                std::cerr << ntmd::logwarn << "Error accepting new incoming socket request.\n";
                 continue;
             }
 

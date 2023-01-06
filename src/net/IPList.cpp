@@ -1,4 +1,5 @@
 #include "IPList.hpp"
+#include "Daemon.hpp"
 
 #include <cstring>
 #include <ifaddrs.h>
@@ -15,7 +16,8 @@ void IPList::init(const pcap_if* device)
     ifaddrs *interfaces, *interface;
     if (getifaddrs(&interfaces) < 0)
     {
-        std::cerr << "Unable to access local interface addresses from idaddrs for " << device->name
+        std::cerr << ntmd::logerror
+                  << "Unable to access local interface addresses from idaddrs for " << device->name
                   << ". Cannot proceed, exiting.";
         std::exit(1);
     }
@@ -32,8 +34,8 @@ void IPList::init(const pcap_if* device)
         in_addr ip;
         ip.s_addr = ((sockaddr_in*)interface->ifa_addr)->sin_addr.s_addr;
 
-        std::cerr << "Local IP address found for device " << device->name << ": " << inet_ntoa(ip)
-                  << "\n";
+        std::cerr << ntmd::loginfo << "Local IP address found for device " << device->name << ": "
+                  << inet_ntoa(ip) << "\n";
 
         /* If address starts with 192.168.x.x push to the front of the list.
          * It will be assumed this will be the ip most searched for. */

@@ -1,3 +1,4 @@
+#include "Daemon.hpp"
 #include "api/APIController.hpp"
 #include "config/ArgumentParser.hpp"
 #include "config/Config.hpp"
@@ -15,13 +16,16 @@ int main(int argc, char** argv)
 {
     if (geteuid() != 0)
     {
-        std::cerr << "ntmd must be run as root to sniff packets. Consider using sudo.\n";
-        std::exit(1);
+        std::cerr << ntmd::logerror
+                  << "ntmd must be run as root to sniff packets. Consider using sudo.\n";
+        std::exit(4);
     }
     ArgumentParser args(argc, argv);
 
     Config cfg(args.configPath);
     cfg.mergeArgs(args);
+
+    Daemon& daemon = Daemon::instance();
 
     /* Database controller that is the only object with direct access
      * in or out of the local database that stores all network traffic
@@ -39,4 +43,10 @@ int main(int argc, char** argv)
     auto api = APIController(trafficStorage, db, cfg.serverPort);
 
     Sniffer sniffer(cfg, trafficStorage);
+    while (daemon.running())
+    {
+        sniffer.dispatch();
+    }
+
+    std::cerr << ntmd::lognotice << "ntmd graceful shutdown.\n";
 }

@@ -29,6 +29,8 @@ class Sniffer
      * is empty will use the first device found. */
     void findDevice(const std::string& device);
 
+    int dispatch();
+
     friend void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char* bytes);
 
   private:

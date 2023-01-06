@@ -1,4 +1,5 @@
 #include "ProcessIndex.hpp"
+#include "Daemon.hpp"
 #include "util/LRUArray.hpp"
 #include "util/StringUtil.hpp"
 
@@ -55,7 +56,8 @@ void ProcessIndex::refresh()
     DIR* procDir = opendir("/proc");
     if (procDir == nullptr)
     {
-        std::cerr << "Failed to open the /proc directory, error: " << strerror(errno)
+        std::cerr << ntmd::logerror
+                  << "Failed to open the /proc directory, error: " << strerror(errno)
                   << ". Cannot proceed, exiting.";
         std::exit(1);
     }
@@ -92,9 +94,6 @@ OptionalProcessRef ProcessIndex::search(inode target)
     foundProcess = searchCache(target);
     if (foundProcess.has_value())
     {
-        const Process& ref = foundProcess->get();
-        std::cerr << "Successful cache hit for process: " << ref.comm << " (pid: " << ref.pid
-                  << ")\n";
         return foundProcess;
     }
 
@@ -105,7 +104,8 @@ OptionalProcessRef ProcessIndex::search(inode target)
     DIR* procDir = opendir("/proc");
     if (procDir == nullptr)
     {
-        std::cerr << "Failed to open the /proc directory, error: " << strerror(errno)
+        std::cerr << ntmd::logerror
+                  << "Failed to open the /proc directory, error: " << strerror(errno)
                   << ". Cannot proceed, exiting.";
         std::exit(1);
     }
@@ -145,7 +145,8 @@ OptionalProcessRef ProcessIndex::search(inode target)
         if (foundProcess.has_value())
         {
             const Process& ref = foundProcess->get();
-            std::cerr << "Succesful sorted search and found new process: " << ref.comm
+            std::cerr << ntmd::logdebug
+                      << "Successful sorted search and found new process: " << ref.comm
                       << " (pid: " << ref.pid << ") with inode: " << target << "\n";
             return foundProcess;
         }
@@ -196,7 +197,7 @@ OptionalProcessRef ProcessIndex::processPidDir(const std::string& fdPath, const 
     std::ifstream commFile("/proc/" + pidStr + "/comm");
     if (!commFile.is_open())
     {
-        std::cerr << "Error opening comm file for PID " << pid
+        std::cerr << ntmd::logdebug << "Error opening comm file for PID " << pid
                   << ". Process could have been deleted while processing it.\n";
         return std::nullopt;
     }
@@ -208,7 +209,8 @@ OptionalProcessRef ProcessIndex::processPidDir(const std::string& fdPath, const 
     DIR* fdDir = opendir(fdPath.c_str());
     if (fdDir == nullptr)
     {
-        std::cerr << "Tried to read from a process's file descriptor folder that was deleted "
+        std::cerr << ntmd::logdebug
+                  << "Tried to read from a process's file descriptor folder that was deleted "
                      "after it was "
                      "found. ("
                   << "/proc/ " << pidStr << ")\n";
@@ -291,7 +293,8 @@ OptionalProcessRef ProcessIndex::get(inode inode)
         }
         else
         {
-            std::cerr << "Could not find a process associated with that inode[" << inode << "].\n";
+            std::cerr << ntmd::logdebug << "Could not find a process associated with the inode["
+                      << inode << "] found in the SocketIndex.\n";
             mCouldNotFind[inode] = true;
             return std::nullopt;
         }

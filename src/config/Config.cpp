@@ -1,5 +1,6 @@
 #include "Config.hpp"
 
+#include "Daemon.hpp"
 #include "util/FilesystemUtil.hpp"
 #include "util/StringUtil.hpp"
 
@@ -15,63 +16,21 @@ namespace ntmd {
 
 Config::Config(std::filesystem::path overridedPath)
 {
-    std::filesystem::path home = util::getHomeDirectory();
-
-    /* If running as root user, make / the base directory.
-     * Sometimes $HOME for root is set to /root/.
-     */
-    if (geteuid() == 0)
-    {
-        home.clear();
-    }
-
-    /* Preallocated preferred directory choices (this is the cleanest solution I could find). */
-    std::filesystem::path first, second, third;
-    if (!home.empty())
-    {
-        first = std::filesystem::path(home).append(".ntmdconf");
-        second = std::filesystem::path(home).append(".config/ntmd/ntmd.conf");
-    }
-    else if (geteuid() != 0)
-    {
-        std::cerr << "Could not get location of home directory from $XDG_CONFIG_HOME or $HOME. "
-                     "Falling back to root directory config location /etc/ntmd.conf.\n";
-    }
-
-    third = "/etc/ntmd.conf";
-
     if (!overridedPath.empty())
     {
-        /* Path is verified to be valid in ArgumentParser.cpp */
+        /* Path is already verified to be valid in ArgumentParser.cpp */
         mFilePath = overridedPath;
     }
-    else if (std::filesystem::is_regular_file(first))
+    else
     {
-        mFilePath = first;
-    }
-    else if (std::filesystem::is_regular_file(second))
-    {
-        mFilePath = second;
-    }
-    else if (std::filesystem::is_regular_file(third))
-    {
-        mFilePath = third;
+        mFilePath = "/etc/ntmd.conf";
     }
 
-    if (mFilePath.empty())
+    if (!std::filesystem::is_regular_file(mFilePath))
     {
-        if (!home.empty())
-        {
-            mFilePath = home.append(".ntmdconf");
-        }
-        else
-        {
-            mFilePath = "/etc/ntmd.conf";
-        }
-
-        std::cerr << "No config file present in ~/.ntmdconf, ~/.config/ntmd/ntmd.conf, or "
-                     "/etc/ntmd.conf.\n"
-                     "Using default values and writing default config to "
+        std::cerr << ntmd::logwarn
+                  << "No config file present in /etc/ntmd.conf, Using default values and writing "
+                     "default config to "
                   << mFilePath << "\n";
 
         this->writeConfig();
@@ -81,9 +40,12 @@ Config::Config(std::filesystem::path overridedPath)
     std::ifstream configFile(mFilePath);
     if (!configFile.is_open())
     {
-        std::cerr << "Couldn't open config file " << mFilePath << "\n";
+        std::cerr << ntmd::logerror << "Couldn't open config file " << mFilePath << "\n";
         std::exit(1);
     }
+
+    std::cerr << ntmd::loginfo << "Successfully opened config file " << mFilePath
+              << " for parsing.\n";
 
     std::unordered_map<std::string, std::string> items;
     std::string line;
@@ -114,12 +76,14 @@ Config::Config(std::filesystem::path overridedPath)
         catch (std::invalid_argument& ia)
         {
             std::cerr
+                << ntmd::logwarn
                 << "Config item \"interval\" is attempting to be set with a non-integer value (\""
                 << items["interval"] << "\"). Defaulting to " << this->interval << "\n";
         }
         catch (std::out_of_range& oor)
         {
-            std::cerr << "Config item \"interval\" is attempting to be set with an integer value "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"interval\" is attempting to be set with an integer value "
                          "too large (\""
                       << items["interval"] << "\"). Defaulting to " << this->interval << "\n";
         }
@@ -140,7 +104,8 @@ Config::Config(std::filesystem::path overridedPath)
         }
         catch (std::invalid_argument& ia)
         {
-            std::cerr << "Config item \"promiscuous\" is attempting to be set with a non-boolean "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"promiscuous\" is attempting to be set with a non-boolean "
                          "value (\""
                       << items["promiscuous"] << "\"). Defaulting to " << this->promiscuous << "\n";
         }
@@ -155,7 +120,8 @@ Config::Config(std::filesystem::path overridedPath)
         }
         catch (std::invalid_argument& ia)
         {
-            std::cerr << "Config item \"immediate\" is attempting to be set with a non-boolean "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"immediate\" is attempting to be set with a non-boolean "
                          "value (\""
                       << items["immediate"] << "\"). Defaulting to " << this->immediate << "\n";
         }
@@ -166,8 +132,8 @@ Config::Config(std::filesystem::path overridedPath)
         this->dbPath = items["dbPath"];
         if (!std::filesystem::is_regular_file(this->dbPath))
         {
-            fprintf(stderr, "A database file at path \"%s\" does not exist, it will be created.\n",
-                    this->dbPath.c_str());
+            std::cerr << ntmd::logwarn << "A database file at path " << this->dbPath
+                      << " does not exist, it will be created.\n";
         }
     }
 
@@ -179,12 +145,14 @@ Config::Config(std::filesystem::path overridedPath)
         }
         catch (std::invalid_argument& ia)
         {
-            std::cerr << "Config item \"port\" is attempting to be set with a non-integer value (\""
+            std::cerr << ntmd::logwarn
+                      << "Config item \"port\" is attempting to be set with a non-integer value (\""
                       << items["port"] << "\"). Defaulting to " << this->serverPort << "\n";
         }
         catch (std::out_of_range& oor)
         {
-            std::cerr << "Config item \"port\" is attempting to be set with an integer value too "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"port\" is attempting to be set with an integer value too "
                          "large (\""
                       << items["port"] << "\"). Defaulting to " << this->serverPort << "\n";
         }
@@ -198,14 +166,16 @@ Config::Config(std::filesystem::path overridedPath)
         }
         catch (std::invalid_argument& ia)
         {
-            std::cerr << "Config item \"processCacheSize\" is attempting to be set with a "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"processCacheSize\" is attempting to be set with a "
                          "non-integer value (\""
                       << items["processCacheSize"] << "\"). Defaulting to "
                       << this->processCacheSize << "\n";
         }
         catch (std::out_of_range& oor)
         {
-            std::cerr << "Config item \"processCacheSize\" is attempting to be set with an "
+            std::cerr << ntmd::logwarn
+                      << "Config item \"processCacheSize\" is attempting to be set with an "
                          "integer value too large (\""
                       << items["processCacheSize"] << "\"). Defaulting to "
                       << this->processCacheSize << "\n";
@@ -230,7 +200,8 @@ void Config::writeConfig()
     std::ofstream configFile(mFilePath);
     if (!configFile.is_open())
     {
-        std::cerr << "Couldn't open default config file for writing at path " << mFilePath << "\n";
+        std::cerr << ntmd::logerror << "Couldn't open default config file for writing at path "
+                  << mFilePath << "\n";
         std::exit(1);
     }
 

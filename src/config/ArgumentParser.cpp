@@ -1,4 +1,5 @@
 #include "ArgumentParser.hpp"
+#include "Daemon.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -11,7 +12,7 @@ namespace ntmd {
 const char* helpString =
     R"(Usage: ntmd [OPTIONS] ...
 Network Traffic Monitoring Daemon
-Example: ntmd --daemon
+Example: ntmd -p 123 --config /home/user/ntmd.conf
 
 Arguments:
   -x, --debug       Print additional debug information to log.
@@ -25,12 +26,6 @@ Arguments:
 
 ArgumentParser::ArgumentParser(int argc, char** argv)
 {
-    if (argc < 2)
-    {
-        std::cout << helpString << std::endl;
-        exit(1);
-    }
-
     const std::vector<std::string_view> arg_list(argv + 1, argv + argc);
     for (auto it = arg_list.begin(), end = arg_list.end(); it != end; ++it)
     {
@@ -39,7 +34,7 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
         if (arg == "-h" || arg == "--help")
         {
             std::cout << helpString << std::endl;
-            exit(1);
+            std::exit(0);
         }
 
         if (arg == "--daemon")
@@ -64,18 +59,19 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 }
                 catch (const std::exception& ex)
                 {
-                    fprintf(stderr,
-                            "The interval argument (-i, --interval) requires a "
-                            "32 bit integer in seconds. Invalid argument: %s\n",
-                            ex.what());
-                    exit(1);
+                    std::cerr << ntmd::logerror
+                              << "The interval argument (-i, --interval) requires a "
+                                 "32 bit integer in seconds. Invalid argument: "
+                              << ex.what() << "\n";
+                    std::exit(2);
                 }
             }
             else
             {
-                fprintf(stderr, "The interval argument (-i, --interval) requires an "
-                                "integer in seconds.\n");
-                exit(1);
+                std::cerr << ntmd::logerror
+                          << "The interval argument (-i, --interval) requires an "
+                             "integer in seconds.\n";
+                std::exit(2);
             }
 
             it++;
@@ -92,18 +88,19 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 }
                 catch (const std::exception& ex)
                 {
-                    fprintf(stderr,
-                            "The port argument (-p, --port) requires a "
-                            "16 bit unsigned integer in seconds. Invalid argument: %s\n",
-                            ex.what());
-                    exit(1);
+                    std::cerr << ntmd::logerror
+                              << "The port argument (-p, --port) requires a "
+                                 "16 bit unsigned integer in seconds. Invalid argument: "
+                              << ex.what() << "\n";
+                    std::exit(2);
                 }
             }
             else
             {
-                fprintf(stderr, "The port argument (-p, --port) requires a "
-                                "16 bit unsigned integer in seconds.\n");
-                exit(1);
+                std::cerr << ntmd::logerror
+                          << "The port argument (-p, --port) requires a "
+                             "16 bit unsigned integer in seconds.\n";
+                std::exit(2);
             }
 
             it++;
@@ -117,16 +114,17 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 this->configPath = *(it + 1);
                 if (!std::filesystem::is_regular_file(this->configPath))
                 {
-                    fprintf(stderr, "A config file at path \"%s\" does not exist.\n",
-                            this->configPath.c_str());
-                    exit(1);
+                    std::cerr << ntmd::logerror << "A config file at path " << this->configPath
+                              << " does not exist.\n";
+                    std::exit(2);
                 }
             }
             else
             {
-                fprintf(stderr, "The config argument (-c, --config) requires an "
-                                "absolute path to a config file.\n");
-                exit(1);
+                std::cerr << ntmd::logerror
+                          << "The config argument (-c, --config) requires an "
+                             "absolute path to a config file.\n";
+                std::exit(2);
             }
 
             it++;
@@ -142,9 +140,10 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
             else
             {
                 std::cerr
+                    << ntmd::logerror
                     << "The interface argument (--interface) requires a string value indiciating "
                        "the network interface for ntmd to monitor traffic from. (Example: eth0).\n";
-                exit(1);
+                std::exit(2);
             }
 
             it++;
@@ -158,16 +157,17 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
                 this->dbPath = *(it + 1);
                 if (!std::filesystem::is_regular_file(this->dbPath.value()))
                 {
-                    fprintf(stderr,
-                            "A database file at path \"%s\" does not exist, it will be created.\n",
-                            this->dbPath.value().c_str());
+                    std::cerr << ntmd::lognotice << "A database file at path "
+                              << this->dbPath.value().c_str()
+                              << " does not exist, it will be created.\n";
                 }
             }
             else
             {
-                fprintf(stderr, "The database argument (-c, --config) requires an "
-                                "absolute path to a database file.\n");
-                exit(1);
+                std::cerr << ntmd::logerror
+                          << "The database argument (-c, --config) requires an "
+                             "absolute path to a database file.\n";
+                std::exit(2);
             }
 
             it++;
@@ -175,9 +175,9 @@ ArgumentParser::ArgumentParser(int argc, char** argv)
         }
 
         /* Provided arg doesn't match any actual arguments */
-        std::cout << "Invalid argument: " << arg << "\n\n";
-        std::cout << helpString << std::endl;
-        exit(1);
+        std::cerr << ntmd::logerror << "Invalid argument: " << arg
+                  << ". Use --help to view list of valid arguments.\n";
+        std::exit(2);
     }
 }
 
