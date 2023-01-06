@@ -244,7 +244,7 @@ void Config::writeConfig()
     cfg << "[database]\n\n";
     cfg << "#Path to the database file that will be used for reading and writing application "
            "network traffic.\n";
-    cfg << "#If left empty the default for root is /var/lib/ntmd.db and non-root is ~/.ntmd.db.\n";
+    cfg << "#If left empty the default for is /var/lib/ntmd.db\n";
     cfg << "dbPath = " << this->dbPath.string() << "\n";
 
     cfg << "\n";
