@@ -34,6 +34,8 @@ bool Daemon::running()
 void Daemon::reload()
 {
     // TODO implement reloading config. maybe?
+    std::cerr << ntmd::logwarn
+              << "SIGHUP config reloading not implemented yet; proceeding without reload.\n";
 }
 
 void Daemon::signalHandler(int signal)

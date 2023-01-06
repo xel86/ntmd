@@ -25,12 +25,15 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   ${PROJECT_SOURCE_DIR}/include
 )
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
-FIND_PACKAGE(PCAP REQUIRED)
-FIND_PACKAGE(SQLite3 REQUIRED)
-FIND_PACKAGE(nlohmann_json 3.2.0 REQUIRED)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+find_package(Threads REQUIRED)
+find_package(PCAP REQUIRED)
+find_package(SQLite3 REQUIRED)
+find_package(nlohmann_json 3.2.0 REQUIRED)
 
 
 include_directories(${SQLITE3_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${PCAP_LIBRARY} ${SQLITE3_LIBRARIES} nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} ${PCAP_LIBRARY} ${SQLITE3_LIBRARIES} nlohmann_json::nlohmann_json Threads::Threads)
