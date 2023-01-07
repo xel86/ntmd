@@ -6,14 +6,30 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace ntmd {
 
 using inode = uint64_t;
 
-SocketIndex::SocketIndex() { refresh({"/proc/net/tcp", "/proc/net/udp", "/proc/net/raw"}); }
+SocketIndex::SocketIndex()
+{
+    refresh({"/proc/net/tcp", "/proc/net/udp", "/proc/net/raw"});
+
+    std::thread loop([this] {
+        while (true)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+
+            std::unique_lock<std::mutex> lock(mMutex);
+            mCouldNotFind.clear();
+        }
+    });
+    loop.detach();
+}
 
 void SocketIndex::refresh(const std::vector<std::string>& tables)
 {
@@ -78,7 +94,17 @@ void SocketIndex::refresh(const std::vector<std::string>& tables)
 
 inode SocketIndex::get(const Packet& pkt)
 {
+
     PacketHash hash(pkt);
+
+    /* If we have recently failed to find the proc net line for the given inode already,
+     * don't search for it again. */
+    std::unique_lock<std::mutex> lock(mMutex);
+    if (mCouldNotFind.count(hash))
+    {
+        return 0;
+    }
+
     const auto& found = mSocketMap.find(hash);
     if (found != mSocketMap.end())
     {
@@ -113,6 +139,7 @@ inode SocketIndex::get(const Packet& pkt)
             std::cerr << ntmd::logdebug
                       << "Could not find an associated socket inode for the packet: " << pkt
                       << "\n";
+            mCouldNotFind[hash] = true;
             return 0;
         }
     }

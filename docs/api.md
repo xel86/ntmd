@@ -74,7 +74,6 @@ Example payload:
         },
     },
     "length": 2
-    "interval": 10
     "result": "success"
 }
 ```

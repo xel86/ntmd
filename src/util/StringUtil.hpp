@@ -5,7 +5,7 @@
 
 namespace ntmd::util {
 
-/* Removes whitespace from the beginning and end of a string.
+/* Removes whitespace, and newlines from the beginning and end of a string.
  * Does not modify original string, returns a new trimmed string.
  */
 std::string trim(const std::string& s);

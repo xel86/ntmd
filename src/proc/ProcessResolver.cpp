@@ -10,21 +10,21 @@
 
 namespace ntmd {
 
-std::optional<std::reference_wrapper<const Process>> ProcessResolver::resolve(const Packet& pkt)
+const Process& ProcessResolver::resolve(const Packet& pkt)
 {
     uint64_t inode = mSocketIndex.get(pkt);
     if (inode == 0)
-        return std::nullopt;
+        return mUnknownProcess;
 
     auto process = mProcessIndex.get(inode);
 
     if (process.has_value())
     {
-        return process;
+        return process->get();
     }
     else
     {
-        return std::nullopt;
+        return mUnknownProcess;
     }
 }
 

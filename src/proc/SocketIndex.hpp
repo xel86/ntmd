@@ -3,6 +3,7 @@
 #include "net/PacketHash.hpp"
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -45,6 +46,13 @@ class SocketIndex
 
   private:
     std::unordered_map<PacketHash, inode> mSocketMap;
+
+    /* For packets and their socket inodes that we cannot find a corresponding proc net line for,
+     * add them to a not found list so that we don't continously hammer the CPU trying to find a
+     * proc net line that we already know we can't find for every additional packet sniffed. Idealy
+     * this list should be empty or very small. */
+    std::mutex mMutex;
+    std::unordered_map<PacketHash, bool> mCouldNotFind;
 };
 
 } // namespace ntmd

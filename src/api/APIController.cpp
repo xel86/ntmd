@@ -93,7 +93,7 @@ void APIController::startSocketServer()
             std::string strbuf = std::string(buffer);
             std::vector<std::string> request = util::split(strbuf);
 
-            const std::string& cmd = request[0];
+            const std::string& cmd = util::trim(request[0]);
 
             /* Handle API requests.
              * API Handlers are responsible for closing the socket belonging to the requester. */

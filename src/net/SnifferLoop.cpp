@@ -17,10 +17,9 @@ void SnifferLoop::pktCallback(u_char* user, const pcap_pkthdr* hdr, const u_char
     if (pkt.discard)
         return;
 
-    auto process = s->mProcessResolver.resolve(pkt);
+    const Process& process = s->mProcessResolver.resolve(pkt);
 
-    if (process.has_value())
-        s->mTrafficStorage.add(process->get(), pkt);
+    s->mTrafficStorage.add(process, pkt);
 }
 
 } // namespace ntmd
