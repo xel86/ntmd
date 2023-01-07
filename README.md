@@ -1,6 +1,7 @@
 # ntmd (WIP)
 Network Traffic Monitor Daemon for linux.  
-This project is early in development, and although core functionality is working well it still has it's fair share of issues (known & unknown).
+
+<b>This project is early in development, core functionality is working well but it still has it's fair share of issues (known & unknown).</b>
 
 ## Known Issues
 - Can't find process/sockets for qemu virtual machines 
@@ -64,10 +65,10 @@ Once ntmd is running in the background it will begin monitoring network traffic 
 
 Full API documentation of all commands and further information can be found in [docs/api.md](docs/api.md)
 
-Quick examples using netcat to send commands to socket server and jq to pretty print the returned json:  
+#### Quick Examples (netcat to send commands and jq to pretty print the json):  
 
-View current in-memory monitored traffic before database deposit:
-`echo 'snapshot' | nc localhost 13889 | jq`  
+View live in-memory monitored traffic before database deposit:  
+`echo 'snapshot' | nc localhost 13889 | jq`
 
 ```
 {
@@ -90,7 +91,7 @@ View current in-memory monitored traffic before database deposit:
 }
 ```  
 
-View historical traffic since January 1st 2023:
+View historical network traffic from database since January 1st 2023:  
 `echo 'traffic-since 1672549200 | nc localhost 13889 | jq`  
 
 ```
@@ -125,5 +126,3 @@ View historical traffic since January 1st 2023:
   "result": "success"
 }
 ```
-
-Successor to previous project https://github.com/xel86/omnis
