@@ -7,55 +7,6 @@ Network Traffic Monitor Daemon for linux.
 - Can't find process/sockets for qemu virtual machines 
 - Can't find process/sockets for mullvad vpn traffic when turned on (and presumably other vpns).
 
-## Installation
-
-ntmd uses a few dependencies that are not bundled with the repository, so you must install them yourself before building.   
-
-These include:
-- sqlite3
-- nlohmann-json
-- libpcap
-- cmake
-- clang
-
-To install all required dependencies on ubuntu:  
-`sudo apt-get install libsqlite3-dev nlohmann-json3-dev libpcap-dev clang cmake`
-
-To install all required dependencies on arch:  
-`sudo pacman -S sqlite nlohmann-json libpcap clang cmake`
-
-### Packages
-TBD
-
-### Manual Build
-After installing all dependencies, clone the repository and build the binary:  
-```
-git clone https://github.com/xel86/ntmd
-cd ntmd/
-mkdir build && cd build
-cmake .. && make
-```
-
-Move ntmd into `/usr/bin`:  
-
-    sudo mv ntmd /usr/bin
-
-If you wish to launch with a custom config edit the default config provided in `docs/ntmd.conf` to your liking and then move it into the default location `/etc/ntmd.conf` or specify its location with the `-c/--config` argument.  
-
-    sudo cp ../docs/ntmd /etc/
-
-If you wish to setup a systemd service to manage ntmd:  
-
-    sudo cp ../systemd/ntmd.service /etc/systemd/system/
-
-If you wish for ntmd to start up with your computer, enable the systemd service:  
-
-    sudo systemctl enable ntmd
-
-To start ntmd immediately:
-
-    sudo systemctl start ntmd
-
 ## Usage
 Once ntmd is running in the background it will begin monitoring network traffic and matching packets with the processes they belong too. To retrieve that information you should use the socket api that ntmd hosts to allow external applications to view live in-memory network traffic or historical network traffic stored in the database.
 
@@ -122,3 +73,52 @@ View historical network traffic from database since January 1st 2023:
   "result": "success"
 }
 ```
+
+## Installation
+
+ntmd uses a few dependencies that are not bundled with the repository, so you must install them yourself before building.   
+
+These include:
+- sqlite3
+- nlohmann-json
+- libpcap
+- cmake
+- clang
+
+To install all required dependencies on ubuntu:  
+`sudo apt-get install libsqlite3-dev nlohmann-json3-dev libpcap-dev clang cmake`
+
+To install all required dependencies on arch:  
+`sudo pacman -S sqlite nlohmann-json libpcap clang cmake`
+
+### Packages
+TBD
+
+### Manual Build
+After installing all dependencies, clone the repository and build the binary:  
+```
+git clone https://github.com/xel86/ntmd
+cd ntmd/
+mkdir build && cd build
+cmake .. && make
+```
+
+Move ntmd into `/usr/bin`:  
+
+    sudo mv ntmd /usr/bin
+
+If you wish to launch with a custom config edit the default config provided in `docs/ntmd.conf` to your liking and then move it into the default location `/etc/ntmd.conf` or specify its location with the `-c/--config` argument.  
+
+    sudo cp ../docs/ntmd /etc/
+
+If you wish to setup a systemd service to manage ntmd:  
+
+    sudo cp ../systemd/ntmd.service /etc/systemd/system/
+
+If you wish for ntmd to start up with your computer, enable the systemd service:  
+
+    sudo systemctl enable ntmd
+
+To start ntmd immediately:
+
+    sudo systemctl start ntmd
