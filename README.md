@@ -28,17 +28,13 @@ To install all required dependencies on arch:
 TBD
 
 ### Manual Build
-After installing all dependencies, clone the repository:  
-
-    git clone https://github.com/xel86/ntmd
-
-Once in the `ntmd/` directory make a build directory and cd into it:  
-
-    mkdir build && cd build
-
-Compile the project with cmake: 
-
-    cmake .. && make
+After installing all dependencies, clone the repository and build the binary:  
+```
+git clone https://github.com/xel86/ntmd
+cd ntmd/
+mkdir build && cd build
+cmake .. && make
+```
 
 Move ntmd into `/usr/bin`:  
 
