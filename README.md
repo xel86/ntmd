@@ -88,7 +88,7 @@ View live in-memory monitored traffic before database deposit:
 ```  
 
 View historical network traffic from database since January 1st 2023:  
-`echo 'traffic-since 1672549200 | nc localhost 13889 | jq`  
+`echo 'traffic-since 1672549200' | nc localhost 13889 | jq`  
 
 ```
 {
